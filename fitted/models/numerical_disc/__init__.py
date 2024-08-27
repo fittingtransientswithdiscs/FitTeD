@@ -5,22 +5,19 @@ from functools import wraps
 
 __all__ = ["reldisc_model", "N", "numerical_disc_avaliable", "energy_grid", "energy_grid_midpoints"]
 tdedisc_grid_avaliable = False
-dolfin_avaliable=True
-
+numerical_disc_avaliable = "No"
 try:
     from . import tdedisc_grid
 except ImportError  as e:
     print(e)
     warn("tdedisc_grid is not avaliable, please compile it.  (See README)", stacklevel=4)
-    tdedisc_grid_avaliable = False
 else:
     tdedisc_grid_avaliable = True
-    if dolfin_avaliable:
-        numerical_disc_avaliable = "Yes"
-        # This is the energy_grid we use.
-        tdedisc_grid.setup_energy_grids()
-        energy_grid = np.array( tdedisc_grid.internal_grids.earx)
-        energy_grid_midpoints = np.array( tdedisc_grid.internal_grids.dEarr)
+    numerical_disc_avaliable = "Yes"
+    # This is the energy_grid we use.
+    tdedisc_grid.setup_energy_grids()
+    energy_grid = np.array( tdedisc_grid.internal_grids.earx)
+    energy_grid_midpoints = np.array( tdedisc_grid.internal_grids.dEarr)
 
 
 normalisation_unit = (units.keV * units.M_sun**-2 * units.s**-1 )#* (units.Mpc/units.cm)**2 )
@@ -35,9 +32,7 @@ def numerical_disc_decorator(func):
     '''
     @wraps(func)
     def numerical_disc_checker(*args, **kwargs):
-        if not dolfin_avaliable:
-            raise NotImplementedError("It appears dolfin is not installed")
-        elif not tdedisc_grid_avaliable:
+        if not tdedisc_grid_avaliable:
             raise NotImplementedError("A compiled version of tdedisc_grid cannot be found")
         return func(*args, **kwargs)
     return numerical_disc_checker

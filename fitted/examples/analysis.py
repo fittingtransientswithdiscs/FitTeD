@@ -2,9 +2,10 @@ import numpy as np
 import fitted
 import matplotlib.pyplot as plt 
 
+fitted.format_plots()
+
 f = fitted.Fit()
 f.load('AT2019dsg_GR_disc_with_rise_pl_decay')
-f.format_plots()
 
 if 0:
     tplot = np.geomspace(1, 1750, 100) 

@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from astropy import units
 
+fitted.format_plots()
+
 D_19dsg=236.4# Mpc
 data = np.genfromtxt('2019dsg_Xray.txt', delimiter='', skip_header=3)## Data from Stein + 2021.
 bands_d = np.genfromtxt('2019dsg_Xray.txt', delimiter='', skip_header=3, usecols=(1), dtype=str)## Data from Stein + 2021.
@@ -30,7 +32,6 @@ d = fitted.data.Data_Set(manyTDE_name='AT2019dsg', manyTDE_bands=bands_i_want,
 ### NOTE, I USE THE NAME 'UV' TO REFER TO ANY OBSERVATION THAT IS NOT ACROSS A BROAD BAND, AND 'X' FOR ANYTHING THAT IS. 
 ### I APPRECIATE THAT THIS IS POTENTIALLY CONFUSING BUT SADLY YOU WILL HAVE TO DEAL WITH IT. 
 
-d.format_plots()
 
 d.bands_systematic['r.ztf'] = 0.3## r-band is noisy and messes with the fits, this makes the algorithms ignore it more, but not completely. 
 

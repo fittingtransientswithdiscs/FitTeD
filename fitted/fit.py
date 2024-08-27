@@ -1,12 +1,12 @@
+import os
 import numpy as np
-from scipy.optimize import minimize
 import emcee
 import pickle
 import matplotlib.pyplot as plt 
 import corner
+from scipy.optimize import minimize
 from . import prior as pr
 from .models import *
-import os
 from .constants import *
 
 __all__ = ["NoFitYetError", "Fit"]
@@ -47,8 +47,7 @@ class Fit():
         self.last_best_fit = None
         self.sampler = None
         self.chain = None
-        self.chain_probabilities = None
-        return 
+        self.chain_probabilities = None 
 
     ######################################
     ## Saving and loading 
@@ -58,8 +57,7 @@ class Fit():
         """save class as name_FIT.pickle"""
         file = open(name+'_FIT.pickle','wb')
         file.write(pickle.dumps(self.__dict__))
-        file.close()
-        return 
+        file.close() 
 
     def load(self, name):
         """try load name_FIT.pickle"""
@@ -75,20 +73,11 @@ class Fit():
             return None
         dataPickle = file.read()
         file.close()
-        self.__dict__ = pickle.loads(dataPickle)
-        return 
-
+        self.__dict__ = pickle.loads(dataPickle) 
 
     ######################################
     ## Plotting data, models and analysis
     ######################################
-        
-    def format_plots(self, usetex=False):
-        """
-            Formats all plots as default.  
-        """
-        self.model.data.format_plots()
-        return 
     
     def plot_data(self, fig=None, bands=None,#if bands is None does all bands.  
             yscale='log', xscale='linear', 

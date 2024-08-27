@@ -1,6 +1,6 @@
 from . import models, prior, data, constants
 from .fit import *
-__version__ = '1.0.0' 
+__version__ = '1.0.1' 
 
 def print_starting_message():
     print("  _____  _  _   _____      ____   ", end="\n")
@@ -23,5 +23,14 @@ def print_starting_message():
     print(" $ enathan@caltech.edu",end="\n")
     print("")
 
+
+def format_plots():
+    """
+        Formats all plots as default.  
+    """
+    import os
+    import matplotlib.pyplot as plt
+    fullpath = os.path.dirname(os.path.realpath(__file__))
+    plt.style.use(fullpath+'/fitted_style.mplstyle')
 
 print_starting_message()

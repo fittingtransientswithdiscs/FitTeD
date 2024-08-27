@@ -2,6 +2,8 @@ import fitted
 import matplotlib.pyplot as plt
 import numpy as np
 
+fitted.format_plots()
+
 yes_i_want_to_run_a_chain = False## naming convention obvious -- takes ~ 5 hours
 save_str = 'GR_disc_with_rise_pl_decay'
 nwalk=100
@@ -16,7 +18,6 @@ d = fitted.data.Data_Set()
 d.load('AT2019dsg_data_processed')
 m = fitted.models.GR_disc(data=d, decay_type=decay_type, rise=rise)## GR_disc significantly faster than GR_disc_plus (at cost of neglecting photon physics).
 f = fitted.Fit(model=m)
-f.format_plots()
 
 d.plot_data(ylim=(1e40, 2e44))## if you want only a few bands do bands=[...]
 

@@ -1,19 +1,21 @@
+import os 
 import numpy as np
+import matplotlib.pyplot as plt 
+import pickle 
 from scipy.integrate import simpson
 from collections import OrderedDict
 from warnings import warn
 from astropy import units
 from .constants import *
-import matplotlib.pyplot as plt 
-import pickle 
-import matplotlib.font_manager
 
+__all__ = ["Data_Set"]
 
-manyTDE_available = False
+manyTDE_available = "No"
 usemanyTDE = False
 try:
     import manyTDE
 except ImportError  as e:
+    print(e)
     warn("manyTDE is not avaliable, please install it.  (https://github.com/sjoertvv/manyTDE)", stacklevel=5)
 else:
     manyTDE_available = "Yes"
@@ -21,17 +23,6 @@ else:
     import importlib_resources
     import json
     manyTDEpath = importlib_resources.files("manyTDE") / "data/sources"
-
-__all__ = ["Data_Set"]
-
-import os 
-fullpath = os.path.realpath(__file__)[:-7]
-def format_plots():
-    """
-        Formats all plots as default.  
-    """
-    plt.style.use(fullpath+'/fitted_style.mplstyle')
-
 
 
 class Data_Set:
@@ -480,14 +471,7 @@ class Data_Set:
     ######################################
     ## Data Plotting
     ######################################
-
-    @staticmethod
-    def format_plots():
-        """
-            Formats all plots as default.  
-        """
-        format_plots()
-    
+  
     def plot_band(self, band, fig=None, upperlim=False, 
             yscale='log', xscale='linear', 
             ylabel=r'$L$ [erg/s]', xlabel=r'Time [days]', 
