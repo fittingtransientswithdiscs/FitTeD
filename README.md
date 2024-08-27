@@ -11,7 +11,7 @@ To get this all up and running, you will need to run the following:
 * Pull into it's own folder
 * Within the folder, run "python3 -m pip install -e ." 
 * The -e flag is required so that the package is editable, and therefore the following steps install the fortran code correctly.
-* Go into the numerical_disc folder (fitted_beta/models/numerical_disc/) 
+* Go into the numerical_disc folder (fitted/models/numerical_disc/) 
 * Compile with the "make" command
 * If it cannot find a fortran compiler, set the FC environment variable.  e.g., "make FC='gfortran-mp-9'" 
 
@@ -23,7 +23,7 @@ To run the below examples you will need to also have manyTDE installed (Andy and
 
 ### Running the code ###
 
-There are 3 example scripts in the fitted_beta/examples directory which run through how this all works. 
+There are 3 example scripts in the fitted/examples directory which run through how this all works. 
 
 Running 
 > data_loading.py 
