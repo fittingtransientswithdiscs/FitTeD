@@ -1,0 +1,15 @@
+# Ignore compiled mod files
+**.mod
+
+# Ignore compiled TeD model
+**.pyd
+**.so
+
+# Ignore pycachw
+**/__pycache__
+
+# Ignore local pip install
+*.egg-info/
+
+Ignore apple files 
+*.DS_Store

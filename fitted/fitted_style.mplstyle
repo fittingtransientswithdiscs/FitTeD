@@ -1,0 +1,28 @@
+text.usetex : False # Fales reduces file size 
+font.family : "Times"  # Times gets better results 
+font.size : 20
+legend.fontsize : 16
+legend.framealpha : 1
+legend.edgecolor : 'k'
+lines.linewidth : 2
+figure.figsize : 12., 9.
+ytick.right : True
+xtick.top : True
+ytick.minor.visible : True
+xtick.minor.visible : True
+ytick.direction : in
+xtick.direction : in
+ytick.major.size : 10
+ytick.major.width : 1
+ytick.minor.size : 4
+xtick.major.size : 10
+xtick.major.width : 1
+xtick.minor.size : 4
+savefig.format : pdf
+savefig.bbox : tight
+
+axes.labelsize : 24
+axes.titlesize : 20
+
+xtick.labelsize : 20
+ytick.labelsize : 20

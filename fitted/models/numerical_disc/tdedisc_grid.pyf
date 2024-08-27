@@ -1,0 +1,53 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module tdedisc_grid ! in 
+    interface  ! in :tdedisc_grid
+        module internal_grids ! in :tdedisc_grid:amodules.f90
+            integer, parameter,optional :: nex=2048
+            integer, parameter,optional :: nro=200
+            integer, parameter,optional :: nphi=200
+            real :: emax
+            real :: emin
+            real :: dloge
+            real dimension(2049) :: earx
+            real dimension(2048) :: Emidx
+            real dimension(2048) :: dEarr
+            double precision :: aprev
+            double precision :: mu0prev
+            double precision dimension(200,200) :: pem1
+            double precision dimension(200,200) :: re1
+            complex dimension(8192) :: ftbbodx
+            logical, optional :: firstcall=.true.
+        end module internal_grids
+
+        subroutine setup_energy_grids ! in :tdedisc_grid:tdedisc_grid.f90
+            use internal_grids
+        end subroutine setup_energy_grids
+        
+        subroutine tdedisc_grid(param,ri,kti,nr,photar) ! in :tdedisc_grid:tdedisc_grid.f90
+            use internal_grids
+            real dimension(3) :: param
+            real dimension(nr) :: ri
+            real dimension(nr),depend(nr) :: kti
+            integer, optional,check(len(ri)>=nr),depend(ri) :: nr=len(ri)
+            real dimension(2048),intent(out) :: photar
+        end subroutine tdedisc_grid
+        
+        subroutine tdedisc_grid_for_xspec(ear,ne,param,ri,kti,nr,ifl,photar) ! in :tdedisc_grid:tdedisc_grid.f90
+            use internal_grids
+            real dimension(ne + 1) :: ear
+            integer, optional,check((len(ear)-1)>=ne),depend(ear) :: ne=(len(ear)-1)
+            real dimension(8) :: param
+            real dimension(nr) :: ri
+            real dimension(nr),depend(nr) :: kti
+            integer, optional,check(len(ri)>=nr),depend(ri) :: nr=len(ri)
+            integer :: ifl
+            real dimension(ne),depend(ne) :: photar
+        end subroutine tdedisc_grid_for_xspec
+        
+    end interface 
+end python module tdedisc_grid
+
+! This file was auto-generated with f2py (version:2).
+! See http://cens.ioc.ee/projects/f2py2e/
