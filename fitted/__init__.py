@@ -17,7 +17,7 @@ def print_starting_message():
     print(" manyTDE compatible?  ", data.manyTDE_available)
     print("")
     print(" FitTeD was created by Andrew Mummery* and Edward Nathan$.", end="\n")
-    print(" It is still in development. ",end="\n")
+    # print(" It is still in development. ",end="\n")
     print("")
     print(" * andrew.mummery@physics.ox.ac.uk",end="\n")
     print(" $ enathan@caltech.edu",end="\n")
