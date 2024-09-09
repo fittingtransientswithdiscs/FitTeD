@@ -143,25 +143,40 @@ class Data_Set:
 
         # Setting the dictionary attributes:
         bands=[]
+        tmp_bands_X = []
+        tmp_bands_X_upperlim = []
 
         for i, band in enumerate(bands_X):
-            self.args_band[band]=self.args_X[:3]
-            self.bands_freq[band]=self.args_X[3]
-            self.bands_systematic[band] = 0
+            if len(self.args_X[i][0])>0.5:
+                self.args_band[band]=self.args_X[i][:3]
+                self.bands_freq[band]=self.args_X[i][3]
+                self.bands_systematic[band] = 0
 
-            self.band_colours[band] = 'k'
-            self.band_markers[band] = __all_markers[i]
+                self.band_colours[band] = 'k'
+                self.band_markers[band] = __all_markers[i]
 
-            bands.append(band)
+                bands.append(band)
+                tmp_bands_X.append(band)
+            else:
+                pass
+        
+        bands_X = tmp_bands_X
 
         for i, band in enumerate(bands_X_upperlim):
-            self.args_band[band]=self.args_X_upperlim[:3]
-            self.bands_freq[band]=self.args_X_upperlim[3]
+            if len(self.args_X_upperlim[i][0])>0.5:
+                self.args_band[band]=self.args_X_upperlim[i][:3]
+                self.bands_freq[band]=self.args_X_upperlim[i][3]
 
-            self.band_colours[band] = 'k'
-            self.band_markers[band] = __all_upperlim_markers[i]
+                self.band_colours[band] = 'k'
+                self.band_markers[band] = __all_upperlim_markers[i]
 
-            bands.append(band)
+                bands.append(band)
+                tmp_bands_X_upperlim.append(band)
+            else:
+                pass
+        
+        bands_X_upperlim = tmp_bands_X_upperlim
+
 
         for i, band in enumerate(bands_UV):
             self.args_band[band]=self.args_UV[i][:3]
@@ -502,13 +517,12 @@ class Data_Set:
             ax = fig.add_subplot()
         else:
             ax = fig.get_axes()[0]
-            if xlim is None:
-                x_lims = ax.get_xlim()
-            if ylim is None:
-                y_lims = ax.get_ylim()
 
+        x_lims = ax.get_xlim()
+        y_lims = ax.get_ylim()
         
         t, l, e = self.get_band(band)
+        
 
         if xlim is None:
             x_lim_low = min([x_lims[0], min(t)-10])
