@@ -19,8 +19,8 @@ N_sigmaX = 3 * np.ones_like(lumXUL)## Significance of upper limits
 
 bands_i_want = ['r.ztf', 'g.ztf', 'UVW1.uvot', 'UVW2.uvot', 'UVM2.uvot']
 d = fitted.data.Data_Set(manyTDE_name='AT2019dsg', manyTDE_bands=bands_i_want, 
-                         args_X=[timeX, lumX, errX, [0.3, 10]], bands_X=['Swift XRT'], 
-                         args_X_upperlim=[timeXUL, lumXUL, N_sigmaX, [0.3, 10]], bands_X_upperlim=['Swift XRT upper limit'], 
+                         args_X=[[timeX, lumX, errX, [0.3, 10]]], bands_X=['Swift XRT'], 
+                         args_X_upperlim=[[timeXUL, lumXUL, N_sigmaX, [0.3, 10]]], bands_X_upperlim=['Swift XRT upper limit'], 
                          global_systematic=0.1)#global_systematic takes error to error + global_systematic * luminosity. 
 
                         #### if you have raw data on file which is not in manyTDE you would use 
