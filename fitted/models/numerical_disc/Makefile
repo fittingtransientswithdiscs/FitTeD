@@ -1,4 +1,5 @@
-src=	tdedisc_grid.pyf          \
+src=	amodules.f90              \
+		tdedisc_grid.pyf          \
 		tdedisc_grid.f90          \
 
 make:

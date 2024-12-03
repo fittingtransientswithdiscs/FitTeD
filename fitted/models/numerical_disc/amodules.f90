@@ -11,20 +11,6 @@
 ! END MODULE dyn_gr
 
 
-module internal_grids
-  integer nex
-  parameter (nex=2**11)   !Must be power of two for FFTs
-  parameter (nec=300)  !Must be small for speed
-  parameter (nro=200,nphi=200)
-  real Emax,Emin,dloge,earx(0:nex),Emidx(nex),dEarr(nex),earc(0:nec),Emidc(nec),dEarrc(nec)
-  double precision aprev,mu0prev,pem1(nro,nphi),re1(nro,nphi)
-  complex FTbbodx(4*nex)
-  logical firstcall
-  data firstcall/.true./
-end module internal_grids
-
-
-
 !***********************************************************************
 !This is code of YNOGK used for ray-traycing with General Relativity  
 !***********************************************************************

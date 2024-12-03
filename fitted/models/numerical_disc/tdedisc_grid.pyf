@@ -3,7 +3,7 @@
 
 python module tdedisc_grid ! in 
     interface  ! in :tdedisc_grid
-        module internal_grids ! in :tdedisc_grid:amodules.f90
+        module internal_grids ! in :tdedisc_grid:tdedisc_grid.f90
             integer, parameter,optional :: nex=2048
             integer, parameter,optional :: nro=200
             integer, parameter,optional :: nphi=200
@@ -17,13 +17,12 @@ python module tdedisc_grid ! in
             double precision :: mu0prev
             double precision dimension(200,200) :: pem1
             double precision dimension(200,200) :: re1
-            complex dimension(8192) :: ftbbodx
             logical, optional :: firstcall=.true.
-        end module internal_grids
 
-        subroutine setup_energy_grids ! in :tdedisc_grid:tdedisc_grid.f90
-            use internal_grids
-        end subroutine setup_energy_grids
+            subroutine setup_energy_grids ! in :tdedisc_grid:tdedisc_grid.f90
+            end subroutine setup_energy_grids
+
+        end module internal_grids
         
         subroutine tdedisc_grid(param,ri,kti,nr,photar) ! in :tdedisc_grid:tdedisc_grid.f90
             use internal_grids

@@ -42,51 +42,58 @@ program wrapper
   
 end program wrapper
 
-include 'amodules.f90'
+! include 'amodules.f90'
 
-
-subroutine setup_energy_grids()
-  use internal_grids
+module internal_grids
   implicit none
-  integer i
-  real mybbody,bbodx(nex),dE,E
-  ! Initialize
-  if( firstcall )then
-     firstcall = .false.
-     !Define *logarithmic* internal energy grid
-     Emax  = 1e2
-     Emin  = 1e-4
-     dloge = log10( Emax / Emin ) / real(nex)
-     do i = 0,nex
-       earx(i) = Emin * (Emax/Emin)**(real(i)/real(nex))
-     end do
-     !Blackbody with kT = 1keV, and integral of unity
-     do i = 1,nex
-        Emidx(i)  = 0.5 * ( earx(i) + earx(i-1) )
-        dEarr(i)  = earx(i) - earx(i-1)
-        ! bbodx(i)  = mybbody(1.0,Emidx(i),dEarr(i))
-     end do
-     !Define *logarithmic* internal energy grid
-     dloge = log10( Emax / Emin ) / real(nec)
-     do i = 0,nec
-       earc(i) = Emin * (Emax/Emin)**(real(i)/real(nec))
-     end do
-     !Blackbody with kT = 1keV, and integral of unity
-     do i = 1,nec
-        Emidc(i)  = 0.5 * ( earc(i) + earc(i-1) )
-        dEarrc(i)  = earc(i) - earc(i-1)
-        ! bbodx(i)  = mybbody(1.0,Emidx(i),dEarr(i))
-     end do
-     !Fourier transform
-     
-    !  call pad4FFT(nex,bbodx,FTbbodx)
-     !Assign impossible initia values to previous parameters
-     aprev   = 10.d0
-     mu0prev = 10.d0
-  end if
+  SAVE
 
+  integer, parameter :: nex=2**11   !Must be power of two for FFTs
+  integer, parameter :: nec=300  !Must be small for speed
+  integer, parameter :: nro=200, nphi=200
+  real Emax,Emin,dloge,earx(0:nex),Emidx(nex),dEarr(nex),earc(0:nec),Emidc(nec),dEarrc(nec)
+  double precision aprev,mu0prev,pem1(nro,nphi),re1(nro,nphi)
+  logical firstcall
 
+  data firstcall/.true./
+  !Assign impossible initia values to previous parameters
+  data aprev / 10.d0 /
+  data mu0prev / 10.d0 /
+
+  contains
+
+    subroutine setup_energy_grids()
+      implicit none
+      integer i
+      ! Initialize
+      if( firstcall )then
+        firstcall = .false.
+        !Define *logarithmic* internal energy grid
+        Emax  = 1e2
+        Emin  = 1e-4
+        dloge = log10( Emax / Emin ) / real(nex)
+        do i = 0,nex
+          earx(i) = Emin * (Emax/Emin)**(real(i)/real(nex))
+        end do
+        !Blackbody with kT = 1keV, and integral of unity
+        do i = 1,nex
+            Emidx(i)  = 0.5 * ( earx(i) + earx(i-1) )
+            dEarr(i)  = earx(i) - earx(i-1)
+        end do
+        !Define *logarithmic* internal energy grid
+        dloge = log10( Emax / Emin ) / real(nec)
+        do i = 0,nec
+          earc(i) = Emin * (Emax/Emin)**(real(i)/real(nec))
+        end do
+        !Blackbody with kT = 1keV, and integral of unity
+        do i = 1,nec
+            Emidc(i)  = 0.5 * ( earc(i) + earc(i-1) )
+            dEarrc(i)  = earc(i) - earc(i-1)
+        end do
+      end if
 end subroutine setup_energy_grids
+
+end module internal_grids
 
 
 !=======================================================================

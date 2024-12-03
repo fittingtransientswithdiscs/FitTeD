@@ -4,6 +4,9 @@ Hey.
 
 Thanks for using FitTeD. 
 
+The paper describing this package is here: https://ui.adsabs.harvard.edu/abs/2024arXiv240815048M/abstract
+Please cite if you make use of this code in your research.
+
 ### Setup ###
 
 To get this all up and running, you will need to run the following:

@@ -15,7 +15,7 @@ else:
     tdedisc_grid_avaliable = True
     numerical_disc_avaliable = "Yes"
     # This is the energy_grid we use.
-    tdedisc_grid.setup_energy_grids()
+    tdedisc_grid.internal_grids.setup_energy_grids()
     energy_grid = np.array( tdedisc_grid.internal_grids.earx)
     energy_grid_midpoints = np.array( tdedisc_grid.internal_grids.dEarr)
 
