@@ -21,7 +21,7 @@ if __name__ == "__main__" :
   setup(name='FitTeD',
         version=get_version("fitted/__init__.py"),
         author='Andrew Mummery',
-        author_email='andrew.mummery@physics.ox.ac.uk',
+        author_email='amummery@ias.edu',
         packages=['fitted', ],
         description='A pacakged for fitting Astrophysical transients with disc models.',
         long_description=read('README.md'),

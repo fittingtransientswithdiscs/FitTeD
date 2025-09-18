@@ -186,7 +186,7 @@ class Data_Set:
             if band in __lc_color_dict.keys():
                 self.band_colours[band] = __lc_color_dict[band]
             else:
-                print('No default colour for band {1}, colour for this band currently default matplotlib colour {2}.'.format(band, i))
+                print('No default colour for band {0}, colour for this band currently default matplotlib colour {1}.'.format(band, i))
                 self.band_colours[band] = __back_up_colors[i]
             
             self.band_markers[band] = 'o'
@@ -396,7 +396,7 @@ class Data_Set:
                 if sum(i_want) > 0.5:
                     t_new[i] = np.mean(t[i_want])
                     x_new[i] = np.mean(x[i_want])
-                    errx_new[i] = np.mean(errx[i_want]) * 1/(np.sqrt(sum(i_want)))
+                    errx_new[i] = np.mean(errx[i_want]) 
                 else:
                     i_delete += [i]
             

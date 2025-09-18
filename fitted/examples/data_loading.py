@@ -33,8 +33,6 @@ d = fitted.data.Data_Set(manyTDE_name='AT2019dsg', manyTDE_bands=bands_i_want,
 ### I APPRECIATE THAT THIS IS POTENTIALLY CONFUSING BUT SADLY YOU WILL HAVE TO DEAL WITH IT. 
 
 
-d.bands_systematic['r.ztf'] = 0.3## r-band is noisy and messes with the fits, this makes the algorithms ignore it more, but not completely. 
-
 fig1 = d.plot_data(ylim=(1e40, 2e44))
 
 for band in bands_i_want:

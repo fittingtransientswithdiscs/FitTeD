@@ -227,9 +227,10 @@ class Fit():
 
     def plot_posterior_lightcurves(self, t_plot, bands=None, fig=None, 
                                 N=100, f_discard=0.5, plot_median=True, 
-                                as_range=True, plotted_range=[18, 84], 
+                                as_range=True, plotted_range=[16, 84], 
                                 ignore_sigma=3, 
-                                show_disc=True, show_early=False, show_total=True):
+                                show_disc=True, show_early=False, show_total=True, 
+                                save_posterior=False, save_name='save_lightcurves.txt'):
         """
             Plots emcee output as lightcurve posteriors.
 
@@ -383,15 +384,31 @@ class Fit():
                     ax.plot(t_plot, post_e[0], color=c, alpha=1, ls='-.')
 
 
+        if save_posterior:
+            for ii, band in enumerate(bands): 
+                post_m = np.percentile(lms[:, :, ii], plotted_range, axis=1)
+                post_e = np.percentile(les[:, :, ii], plotted_range, axis=1)
+                post_m_ = np.percentile(lms[:, :, ii], [50], axis=1)
+                post_e_ = np.percentile(les[:, :, ii], [50], axis=1)
+
+                with open('./%s_%s'%(band, save_name), 'w') as file:
+                    file.write('###Time[days]\tMedian Disk Lum\t+range Disk Lum\t-range Disk Lum\tMedian Early Lum\t+range Early Lum\t-range Early Lum\n')
+
+                    for k in range(len(t_plot)):
+                        file.write(f'{t_plot[k]}\t{post_m_[0][k]}\t{post_m[1][k]}\t{post_m[0][k]}\t{post_e_[0][k]}\t{post_e[1][k]}\t{post_e[0][k]}\n')
+
+                file.close()
+
         return fig
 
 
     def plot_bolometric_luminosity_posterior(self, t_plot, fig=None, as_eddington=False, 
                                 N=100, f_discard=0.5, plot_median=True, 
-                                as_range=True, plotted_range=[18, 84], 
+                                as_range=True, plotted_range=[16, 84], 
                                 ignore_sigma=3, yscale='log', xscale='log', 
                                 ylabel=r'$L_{\rm bol}$ [erg/s]', xlabel=r'Time [days]', 
-                                ylim=None, xlim=None, color='k', alpha=0.3):
+                                ylim=None, xlim=None, color='k', alpha=0.3,
+                                save_posterior=False, save_name='save_bolometric.txt'):
         """
             Plots emcee output as bolometric luminosity posteriors. For analysis purposes.
 
@@ -478,16 +495,27 @@ class Fit():
         xlabel=xlabel, 
         ylim=ylim, 
         xlim=xlim)
+
+        if save_posterior:
+            with open('./%s'%save_name, 'w') as file:
+                file.write('###Time[days]\tMedian Lbol\t+range Lbol\t-range Lbol\n')
+
+                for k in range(len(t_plot)):
+                    file.write(f'{t_plot[k]}\t{med[0][k]}\t{ds[1][k]}\t{ds[0][k]}\n')
+
+            file.close()
+
     
         return fig 
 
 
     def plot_isco_accretion_rate_posterior(self, t_plot, fig=None, as_eddington=True, 
                                 N=100, f_discard=0.5, plot_median=True, 
-                                as_range=True, plotted_range=[18, 84], 
+                                as_range=True, plotted_range=[16, 84], 
                                 ignore_sigma=3, yscale='log', xscale='log', 
                                 ylabel=r'$\dot M_{\rm acc}(r_I)$ [g/s]', xlabel=r'Time [days]', 
-                                ylim=None, xlim=None, color='k', alpha=0.3):
+                                ylim=None, xlim=None, color='k', alpha=0.3, 
+                                save_posterior=False, save_name='save_mdot.txt'):
         """
             Plots emcee output as isco accretion rate posteriors. For analysis purposes.
 
@@ -574,13 +602,23 @@ class Fit():
         xlabel=xlabel, 
         ylim=ylim, 
         xlim=xlim)
+
+        if save_posterior:
+            with open('./%s'%save_name, 'w') as file:
+                file.write('###Time[days]\tMedian Mdot\t+range Mdot\t-range Mdot\n')
+
+                for k in range(len(t_plot)):
+                    file.write(f'{t_plot[k]}\t{med[0][k]}\t{ds[1][k]}\t{ds[0][k]}\n')
+
+            file.close()
+
     
         return fig 
 
 
     def plot_density_posterior(self, t_plot, fig=None, in_cgs=False, 
                                 N=100, f_discard=0.5, plot_median=True, 
-                                as_range=True, plotted_range=[18, 84], 
+                                as_range=True, plotted_range=[16, 84], 
                                 ignore_sigma=3, yscale='log', xscale='log', 
                                 ylabel=r'$\Sigma$ [g/cm$^2$]', xlabel=r'$r/r_g$', 
                                 ylim=None, xlim=None, colors=['b'], alpha=0.3, 
