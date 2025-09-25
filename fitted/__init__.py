@@ -1,6 +1,6 @@
 from . import models, prior, data, constants
 from .fit import *
-__version__ = '1.0.3' 
+__version__ = '1.0.4' 
 
 _message=r"""
   _____  _  _   _____      ____   
@@ -22,7 +22,7 @@ _message=r"""
  https://ui.adsabs.harvard.edu/abs/2024arXiv240815048M/abstract
 
  * amummery@ias.edu"
- $ enathan@caltech.edu"
+ $ edward.j.r.nathan@gmail.com"
 
 """
 

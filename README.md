@@ -52,4 +52,4 @@ Andy*, Ed, and Adam
 
 P.S., any comments/questions, drop me a line. 
 
-* andrew.mummery@physics.ox.ac.uk 
+* amummery@ias.edu

@@ -14,6 +14,8 @@ class Model_base():
     def __init__(self, source_redshift = 0.0):
         self.source_redshift = source_redshift
         self.upper_limit_likelihood = self._log_upper_limit_likelihood
+        self.default_key_pars = []
+        self.default_early_pars = []
             
     def model_X(self, time, *args, **kwargs):
         raise NotImplementedError("This is a base class")

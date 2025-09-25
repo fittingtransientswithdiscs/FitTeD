@@ -43,11 +43,12 @@ class GR_disc(Model_base):
         """
         if data is None:
             data = Data_Set(manyTDE_name=None, manyTDE_bands=None, 
-                 args_UV=[], bands_UV=[], 
-                 args_X=[], bands_X=[], 
-                 args_UV_upperlim=[], bands_UV_upperlim=[],
-                 args_X_upperlim=[], bands_X_upperlim=[],
-                 global_systematic=None)
+                            args_UV=[], bands_UV=[], 
+                            args_X=[], bands_X=[], 
+                            args_UV_upperlim=[], bands_UV_upperlim=[],
+                            args_X_upperlim=[], bands_X_upperlim=[],
+                            global_systematic=None
+                            )
 
         if not rest_frame:
             try:
@@ -64,20 +65,21 @@ class GR_disc(Model_base):
         
         self.data=data
         
-        self.default_bounds = {    "log_mh"    : (0, 10),# Note that this is in default units of log_10 Solar masses
-                            "a_bh"      :(-0.999, +0.999),# Dimensionless
-                            "m_disc"    : (1e-3, np.inf),# Note that this is in units of Solar masses
-                            "r0"    : (1, 10000),## In rg. Will also will be forced to be larger than the ISCO. 
-                            "tvi"    : (1, 1000),#viscous timescale of disc. (days). 
-                            "t0"    : (-100, 365.25),# time prior to peak at which disc formed (days). 
-                            "incl"  : (0, 89), # disc-observer inclination angle
-                            "log_L"    : (0, np.inf),# luminosity peak of non-disc emission. log_10 erg/s at v0 = 6e14 Hz. 
-                            "t_decay" : (0.1, 1000),# exponential decay timescale  of non-disc emission. (days). 
-                            "log_T": (4, 5), # temperature of initial thermal component. (log10 kelvin)
-                            "t_fb": (0.1, 1000), # power-law decay timescale  of non-disc emission. (days). 
-                            "p": (0, 10), # power-law decay index  of non-disc emission. (days). 
-                            "t_peak": (-100, 100), # time, relative to 0 in the data, of peak emission. (days)
-                            "sigma": (0, 1000) } # gaussian rise timescale  of non-disc emission. (days). 
+        self.default_bounds = {"log_mh"    : (0, 10),          # Note that this is in default units of log_10 Solar masses
+                               "a_bh"      : (-0.999, +0.999), # Dimensionless
+                               "m_disc"    : (1e-3, np.inf),   # Note that this is in units of Solar masses
+                               "r0"        : (1, 10000),       # In rg. Will also will be forced to be larger than the ISCO. 
+                               "tvi"       : (1, 1000),        # viscous timescale of disc. (days). 
+                               "t0"        : (-100, 365.25),   # time prior to peak at which disc formed (days). 
+                               "incl"      : (0, 89),          # disc-observer inclination angle
+                               "log_L"     : (0, np.inf),      # luminosity peak of non-disc emission. log_10 erg/s at v0 = 6e14 Hz. 
+                               "t_decay"   : (0.1, 1000),      # exponential decay timescale  of non-disc emission. (days). 
+                               "log_T"     : (4, 5),           # temperature of initial thermal component. (log10 kelvin)
+                               "t_fb"      : (0.1, 1000),      # power-law decay timescale  of non-disc emission. (days). 
+                               "p"         : (0, 10),          # power-law decay index  of non-disc emission. (days). 
+                               "t_peak"    : (-100, 100),      # time, relative to 0 in the data, of peak emission. (days)
+                               "sigma"     : (0, 1000),        # gaussian rise timescale  of non-disc emission. (days). 
+                               }
 
         self.default_key_pars = ["log_mh", "a_bh", "m_disc", "r0", "tvi", "t0", "incl"]
 
