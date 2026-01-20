@@ -1,6 +1,7 @@
 from . import models, prior, data, constants
 from .fit import *
-__version__ = '1.0.4' 
+from .fit_tdeflare import *
+__version__ = '1.0.5' 
 
 _message=r"""
   _____  _  _   _____      ____   
@@ -19,10 +20,10 @@ _message=r"""
  FitTeD was created by Andrew Mummery* and Edward Nathan$.
 
  Please cite us if you make use of this code
- https://ui.adsabs.harvard.edu/abs/2024arXiv240815048M/abstract
+ https://ui.adsabs.harvard.edu/abs/2025MNRAS.544.2225M/abstract
 
- * amummery@ias.edu"
- $ edward.j.r.nathan@gmail.com"
+ * amummery@ias.edu
+ $ edward.j.r.nathan@gmail.com
 
 """
 

@@ -395,8 +395,8 @@ class Data_Set:
                     i_want = (t>t_new[i])*(t<t_new[i+1])
                 if sum(i_want) > 0.5:
                     t_new[i] = np.mean(t[i_want])
-                    x_new[i] = np.mean(x[i_want])
-                    errx_new[i] = np.mean(errx[i_want]) 
+                    x_new[i] = np.sum(x[i_want]/errx[i_want]**2)/(np.sum(1/errx[i_want]**2))#np.mean(x[i_want])
+                    errx_new[i] = np.sqrt(1/(np.sum(1/errx[i_want]**2)))#np.mean(errx[i_want]) 
                 else:
                     i_delete += [i]
             
