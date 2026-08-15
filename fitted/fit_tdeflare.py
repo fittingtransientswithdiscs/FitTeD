@@ -712,37 +712,6 @@ class FitTDEFLARE():
         
         return 
 
-    # def run_nested_sampling(self,log_dir):
-        
-    #     # TO DO: add function to change the bounds for the uniform prior
-    #     # warmstart_from_similar_file may also be useful if you have already run a different model
-    #     # If this crashes, add resume = True to the sampler as well as the log_dir for the run
-        
-    #     # Transforms a given prior with values from 0 to 1 to our physical scales:
-    #     def transform(quantile_cube):
-    #         lowers=self._log_prior.as_bounds()[:,0]
-    #         uppers=self._log_prior.as_bounds()[:,1]
-    #         return lowers + (uppers-lowers) * quantile_cube
-
-    #     param_names=self.model.default_key_pars+self.model.default_early_pars
-
-    #     sampler = ultranest.ReactiveNestedSampler(param_names, self.log_likelihood, transform, log_dir=log_dir)
-
-    #     nsteps = 2 * len(param_names)
-    #     # Adding a step sampler since our models have many parameters:
-    #     sampler.stepsampler = ultranest.stepsampler.SliceSampler(
-    #         nsteps=nsteps,
-    #         generate_direction=ultranest.stepsampler.generate_mixture_random_direction
-    #     )
-
-    #     # Running the sampler, will save as it goes
-    #     result2 = sampler.run(frac_remain=0.5)
-
-    #     sampler.print_results()
-
-    ######################################
-    ## Processing fit
-    ######################################
     def get_mass_constraints(self, f_discard=0.5, do_hills=True):
 
         def mass_peak(log_masses, Lpeak, epeak):
@@ -817,6 +786,3 @@ class FitTDEFLARE():
 
             return logm, pm_peak, pm_e, pm_P, pm, phm
         return log_masses, pm_peak, pm_e, pm_P, pm
-
-
-

@@ -1,0 +1,11 @@
+# FitTeD is pure Python: there is no compiled extension, so there is no
+# meson, no ninja, no f2py and no compiler in the build path.  The wheel
+# this produces is py3-none-any -- one file, every platform.
+#
+# All package metadata lives in setup.py.  Deliberately: declaring some of
+# it here in a [project] table and the rest there is an error in setuptools,
+# and one source of truth is easier to keep honest than two.
+
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"

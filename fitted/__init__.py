@@ -1,7 +1,7 @@
 from . import models, prior, data, constants
 from .fit import *
 from .fit_tdeflare import *
-__version__ = '1.0.5' 
+__version__ = '2.0.0'
 
 _message=r"""
   _____  _  _   _____      ____   
@@ -14,7 +14,6 @@ _message=r"""
 
  Version {version:s}
 
- GR Photon treatment avaliable?  {numdiscavaliable:s}
  manyTDE compatible?  {manytdeavaliable:s}
 
  FitTeD was created by Andrew Mummery* and Edward Nathan$.
@@ -29,9 +28,8 @@ _message=r"""
 
 def print_starting_message():
     print(_message.format(version=__version__,
-                         numdiscavaliable=models.numerical_disc.numerical_disc_avaliable,
                          manytdeavaliable=data.manyTDE_available
-                        ), 
+                        ),
           flush=True)
 
 

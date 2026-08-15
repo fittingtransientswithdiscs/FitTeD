@@ -1,5 +1,9 @@
-text.usetex : False # Fales reduces file size 
-font.family : "Times"  # Times gets better results 
+text.usetex : False # False reduces file size
+# Times gets better results.  Declared as a serif *list* rather than
+# font.family : "Times" so that machines without Times (most Linux boxes) fall
+# through to the next serif instead of emitting a findfont warning per artist.
+font.family : serif
+font.serif : Times, Times New Roman, Nimbus Roman, Liberation Serif, DejaVu Serif
 font.size : 20
 legend.fontsize : 16
 legend.framealpha : 1

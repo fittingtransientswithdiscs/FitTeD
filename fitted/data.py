@@ -2,10 +2,10 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt 
 import pickle 
-from scipy.integrate import simpson
 from collections import OrderedDict
 from warnings import warn
 from astropy import units
+from astropy import cosmology
 from .constants import *
 
 __all__ = ["Data_Set"]
@@ -31,7 +31,16 @@ class Data_Set:
                  args_X=[], bands_X=[], 
                  args_UV_upperlim=[], bands_UV_upperlim=[],
                  args_X_upperlim=[], bands_X_upperlim=[],
-                 global_systematic=None
+                 global_systematic=None,
+                 # New parameters for observer-frame flux/magnitude inputs (UV/optical only)
+                 args_UV_flux=None, bands_UV_flux=None,
+                 args_UV_mag=None, bands_UV_mag=None,
+                 args_UV_upperlim_flux=None, bands_UV_upperlim_flux=None,
+                 args_UV_upperlim_mag=None, bands_UV_upperlim_mag=None,
+                 redshift=None,
+                 # New parameters for observer-frame X-ray flux inputs
+                 args_X_flux=None, bands_X_flux=None,
+                 args_X_upperlim_flux=None, bands_X_upperlim_flux=None
                  ):
         """
             The Data_Set class. This class holds all of the data for a given source. 
@@ -45,18 +54,92 @@ class Data_Set:
                 manyTDE_bands -- which optical/UV bands to use from manyTDE. 
 
                 args_UV -- UV data of the form [times, luminosities, uncertainties, frequencies]. 
+                          Times, luminosities, and frequencies should be in rest frame.
                 bands_UV -- list of names of each UV band. Needs len(bands_UV) = number of data sets in args_UV. 
                 
                 args_X -- X-ray data of the form [times, luminosities, uncertainties, [E_low, E_high]]. 
+                         Times and luminosities should be in rest frame.
                 bands_X -- list of names of each X-ray band. Needs len(bands_X) = number of data sets in args_X. 
         
                 args_UV_upperlim -- UV data of the form [times, luminosities, N_sigma, frequencies]. 
+                                   Times, luminosities, and frequencies should be in rest frame.
                 bands_UV_upperlim -- list of names of each UV band with upperlimits. Needs len(bands_UV_upperlim) = number of data sets in args_UV_upperlim. 
 
                 args_X_upperlim -- X-ray data of the form [times, luminosities, N_sigma, [E_low, E_high]]. 
+                                  Times and luminosities should be in rest frame.
                 bands_X_upperlim -- list of names of each X-ray band with upperlimits. Needs len(bands_X_upperlim) = number of data sets in args_X_upperlim. 
 
-                global_systematic -- adds an additional factor of (global_systematic * luminosity)^2 to each variance of the data. 
+                global_systematic -- adds an additional factor of (global_systematic * luminosity)^2 to each variance of the data.
+                
+            New inputs for observer-frame data (UV/optical only):
+                args_UV_flux -- Observer-frame fluxes for UV/optical data.
+                               Format: List of [times, fluxes_erg/s/cm²/Hz, uncertainties, frequencies_Hz] arrays.
+                               All quantities in observer frame. Will be converted to rest-frame vL_v internally.
+                bands_UV_flux -- REQUIRED if args_UV_flux provided. List of band names (strings).
+                                Must have len(bands_UV_flux) == len(args_UV_flux).
+                
+                args_UV_mag -- AB magnitudes for UV/optical data.
+                              Format: List of [times, AB_magnitudes, uncertainties, frequencies_Hz] arrays.
+                              Times and frequencies in observer frame. Will be converted to rest-frame vL_v internally.
+                bands_UV_mag -- REQUIRED if args_UV_mag provided. List of band names (strings).
+                               Must have len(bands_UV_mag) == len(args_UV_mag).
+                
+                args_UV_upperlim_flux -- Observer-frame fluxes for UV/optical upper limits.
+                                        Format: List of [times, fluxes_erg/s/cm²/Hz, N_sigma, frequencies_Hz] arrays.
+                bands_UV_upperlim_flux -- REQUIRED if args_UV_upperlim_flux provided. List of band names (strings).
+                
+                args_UV_upperlim_mag -- AB magnitudes for UV/optical upper limits.
+                                       Format: List of [times, AB_magnitudes, N_sigma, frequencies_Hz] arrays.
+                bands_UV_upperlim_mag -- REQUIRED if args_UV_upperlim_mag provided. List of band names (strings).
+                
+                redshift -- Redshift of the source (required when using flux/mag inputs).
+                          If provided, will be stored as self.redshift.
+                          Distance will be automatically calculated from redshift using astropy.cosmology.Planck18.
+                
+            New inputs for observer-frame X-ray data:
+                args_X_flux -- Observer-frame integrated X-ray fluxes.
+                              Format: List of [times, fluxes_erg/s/cm², uncertainties, [E_low, E_high_keV]] arrays.
+                              All quantities in observer frame. Will be converted to rest-frame integrated luminosity internally.
+                              WARNING: This uses simplified conversion L = 4π d_L² × F. For accurate analysis,
+                              proper K-corrections should be applied.
+                bands_X_flux -- REQUIRED if args_X_flux provided. List of band names (strings).
+                               Must have len(bands_X_flux) == len(args_X_flux).
+                
+                args_X_upperlim_flux -- Observer-frame integrated X-ray fluxes for upper limits.
+                                      Format: List of [times, fluxes_erg/s/cm², N_sigma, [E_low, E_high_keV]] arrays.
+                bands_X_upperlim_flux -- REQUIRED if args_X_upperlim_flux provided. List of band names (strings).
+            
+            Examples:
+                # Using observer-frame fluxes:
+                data = Data_Set(
+                    args_UV_flux=[[times, fluxes, errors, frequencies]],
+                    bands_UV_flux=['g.custom'],
+                    redshift=0.1  # Distance calculated automatically from redshift
+                )
+                
+                # Using AB magnitudes:
+                data = Data_Set(
+                    args_UV_mag=[[times, magnitudes, errors, frequencies]],
+                    bands_UV_mag=['r.custom'],
+                    redshift=0.1  # Distance calculated automatically from redshift
+                )
+                
+                # Mixing manyTDE with custom flux data:
+                data = Data_Set(
+                    manyTDE_name='AT2019dsg',
+                    manyTDE_bands=['g.ztf', 'r.ztf'],
+                    args_UV_flux=[[times, fluxes, errors, frequencies]],
+                    bands_UV_flux=['i.custom'],
+                    redshift=0.1  # Distance calculated automatically from redshift
+                )
+                
+                # Using observer-frame X-ray flux:
+                data = Data_Set(
+                    args_X_flux=[[times, xray_fluxes, xray_errors, [0.3, 10.0]]],
+                    bands_X_flux=['Swift XRT'],
+                    redshift=0.1  # Distance calculated automatically from redshift
+                    # Note: A warning will be raised about simplified X-ray conversion
+                )
         """
 
         __lc_color_dict = {}
@@ -136,9 +219,208 @@ class Data_Set:
                 else:
                     print('The band ` {0} ` is not in the manyTDE data set of source {1}. \n Available bands are {2}'.format(band, manyTDE_name, filters))
 
+        ########################################################
+        #  Process observer-frame flux/magnitude inputs (UV/optical only)
+        ########################################################
+        
+        # Store redshift and distance if provided
+        # Note: manyTDE already sets self.redshift and self.d_Mpc if manyTDE_name is provided
+        if redshift is not None:
+            # If redshift provided explicitly, use it (may override manyTDE redshift)
+            self.redshift = redshift
+            self.d_Mpc = self.get_lum_distance(redshift)
+        elif (args_UV_flux is not None or args_UV_mag is not None or 
+              args_UV_upperlim_flux is not None or args_UV_upperlim_mag is not None):
+            # Check if redshift was set by manyTDE
+            if not hasattr(self, 'redshift'):
+                raise ValueError("redshift must be provided when using observer-frame flux or magnitude inputs")
+            # If manyTDE set redshift, calculate distance from it
+            if not hasattr(self, 'd_Mpc'):
+                self.d_Mpc = self.get_lum_distance(self.redshift)
+        
+        # Process args_UV_flux
+        if args_UV_flux is not None:
+            if bands_UV_flux is None:
+                raise ValueError("bands_UV_flux must be provided when args_UV_flux is provided")
+            if len(bands_UV_flux) != len(args_UV_flux):
+                raise ValueError(f"Length of bands_UV_flux ({len(bands_UV_flux)}) must match length of args_UV_flux ({len(args_UV_flux)})")
+            # Use redshift from manyTDE if available, otherwise require it
+            z_to_use = redshift if redshift is not None else (self.redshift if hasattr(self, 'redshift') else None)
+            if z_to_use is None:
+                raise ValueError("redshift must be provided when using observer-frame flux inputs (or use manyTDE_name which provides redshift)")
+            
+            for i, flux_data in enumerate(args_UV_flux):
+                if len(flux_data) != 4:
+                    raise ValueError(f"args_UV_flux[{i}] must have format [times, fluxes, uncertainties, frequencies]")
+                times_obs, flux_obs, err_obs, freq_obs = flux_data
+                times_rest, vL_v, err_rest, freq_rest = self._flux_to_luminosity(
+                    times_obs, flux_obs, err_obs, freq_obs, z_to_use
+                )
+                # Append to args_UV and bands_UV
+                if args_UV == []:
+                    args_UV = [[times_rest, vL_v, err_rest, freq_rest]]
+                    bands_UV = [bands_UV_flux[i]]
+                else:
+                    args_UV += [[times_rest, vL_v, err_rest, freq_rest]]
+                    bands_UV += [bands_UV_flux[i]]
+        
+        # Process args_UV_mag
+        if args_UV_mag is not None:
+            if bands_UV_mag is None:
+                raise ValueError("bands_UV_mag must be provided when args_UV_mag is provided")
+            if len(bands_UV_mag) != len(args_UV_mag):
+                raise ValueError(f"Length of bands_UV_mag ({len(bands_UV_mag)}) must match length of args_UV_mag ({len(args_UV_mag)})")
+            # Use redshift from manyTDE if available, otherwise require it
+            z_to_use = redshift if redshift is not None else (self.redshift if hasattr(self, 'redshift') else None)
+            if z_to_use is None:
+                raise ValueError("redshift must be provided when using observer-frame magnitude inputs (or use manyTDE_name which provides redshift)")
+            
+            for i, mag_data in enumerate(args_UV_mag):
+                if len(mag_data) != 4:
+                    raise ValueError(f"args_UV_mag[{i}] must have format [times, magnitudes, uncertainties, frequencies]")
+                times_obs, mag_obs, err_obs, freq_obs = mag_data
+                times_rest, vL_v, err_rest, freq_rest = self._ab_mag_to_luminosity(
+                    times_obs, mag_obs, err_obs, freq_obs, z_to_use
+                )
+                # Append to args_UV and bands_UV
+                if args_UV == []:
+                    args_UV = [[times_rest, vL_v, err_rest, freq_rest]]
+                    bands_UV = [bands_UV_mag[i]]
+                else:
+                    args_UV += [[times_rest, vL_v, err_rest, freq_rest]]
+                    bands_UV += [bands_UV_mag[i]]
+        
+        # Process args_UV_upperlim_flux
+        if args_UV_upperlim_flux is not None:
+            if bands_UV_upperlim_flux is None:
+                raise ValueError("bands_UV_upperlim_flux must be provided when args_UV_upperlim_flux is provided")
+            if len(bands_UV_upperlim_flux) != len(args_UV_upperlim_flux):
+                raise ValueError(f"Length of bands_UV_upperlim_flux ({len(bands_UV_upperlim_flux)}) must match length of args_UV_upperlim_flux ({len(args_UV_upperlim_flux)})")
+            # Use redshift from manyTDE if available, otherwise require it
+            z_to_use = redshift if redshift is not None else (self.redshift if hasattr(self, 'redshift') else None)
+            if z_to_use is None:
+                raise ValueError("redshift must be provided when using observer-frame flux inputs (or use manyTDE_name which provides redshift)")
+            
+            for i, flux_data in enumerate(args_UV_upperlim_flux):
+                if len(flux_data) != 4:
+                    raise ValueError(f"args_UV_upperlim_flux[{i}] must have format [times, fluxes, N_sigma, frequencies]")
+                times_obs, flux_obs, N_sigma, freq_obs = flux_data
+                # For upper limits, convert flux to luminosity (N_sigma stays the same)
+                times_rest, vL_v, _, freq_rest = self._flux_to_luminosity(
+                    times_obs, flux_obs, np.ones_like(flux_obs), freq_obs, z_to_use
+                )
+                # N_sigma remains unchanged
+                if args_UV_upperlim == []:
+                    args_UV_upperlim = [[times_rest, vL_v, N_sigma, freq_rest]]
+                    bands_UV_upperlim = [bands_UV_upperlim_flux[i]]
+                else:
+                    args_UV_upperlim += [[times_rest, vL_v, N_sigma, freq_rest]]
+                    bands_UV_upperlim += [bands_UV_upperlim_flux[i]]
+        
+        # Process args_UV_upperlim_mag
+        if args_UV_upperlim_mag is not None:
+            if bands_UV_upperlim_mag is None:
+                raise ValueError("bands_UV_upperlim_mag must be provided when args_UV_upperlim_mag is provided")
+            if len(bands_UV_upperlim_mag) != len(args_UV_upperlim_mag):
+                raise ValueError(f"Length of bands_UV_upperlim_mag ({len(bands_UV_upperlim_mag)}) must match length of args_UV_upperlim_mag ({len(args_UV_upperlim_mag)})")
+            # Use redshift from manyTDE if available, otherwise require it
+            z_to_use = redshift if redshift is not None else (self.redshift if hasattr(self, 'redshift') else None)
+            if z_to_use is None:
+                raise ValueError("redshift must be provided when using observer-frame magnitude inputs (or use manyTDE_name which provides redshift)")
+            
+            for i, mag_data in enumerate(args_UV_upperlim_mag):
+                if len(mag_data) != 4:
+                    raise ValueError(f"args_UV_upperlim_mag[{i}] must have format [times, magnitudes, N_sigma, frequencies]")
+                times_obs, mag_obs, N_sigma, freq_obs = mag_data
+                # For upper limits, convert magnitude to luminosity (N_sigma stays the same)
+                times_rest, vL_v, _, freq_rest = self._ab_mag_to_luminosity(
+                    times_obs, mag_obs, np.ones_like(mag_obs), freq_obs, z_to_use
+                )
+                # N_sigma remains unchanged
+                if args_UV_upperlim == []:
+                    args_UV_upperlim = [[times_rest, vL_v, N_sigma, freq_rest]]
+                    bands_UV_upperlim = [bands_UV_upperlim_mag[i]]
+                else:
+                    args_UV_upperlim += [[times_rest, vL_v, N_sigma, freq_rest]]
+                    bands_UV_upperlim += [bands_UV_upperlim_mag[i]]
+        
+        ########################################################
+        #  Process observer-frame X-ray flux inputs
+        ########################################################
+        
+        # Process args_X_flux
+        if args_X_flux is not None:
+            if bands_X_flux is None:
+                raise ValueError("bands_X_flux must be provided when args_X_flux is provided")
+            if len(bands_X_flux) != len(args_X_flux):
+                raise ValueError(f"Length of bands_X_flux ({len(bands_X_flux)}) must match length of args_X_flux ({len(args_X_flux)})")
+            # Use redshift from manyTDE if available, otherwise require it
+            z_to_use = redshift if redshift is not None else (self.redshift if hasattr(self, 'redshift') else None)
+            if z_to_use is None:
+                raise ValueError("redshift must be provided when using observer-frame X-ray flux inputs (or use manyTDE_name which provides redshift)")
+            
+            for i, flux_data in enumerate(args_X_flux):
+                if len(flux_data) != 4:
+                    raise ValueError(f"args_X_flux[{i}] must have format [times, fluxes, uncertainties, [E_low, E_high]]")
+                times_obs, flux_obs, err_obs, energy_band = flux_data
+                times_rest, lum, err_rest, energy_band_rest = self._flux_to_xray_luminosity(
+                    times_obs, flux_obs, err_obs, energy_band, z_to_use
+                )
+                # Append to args_X and bands_X
+                if args_X == []:
+                    args_X = [[times_rest, lum, err_rest, energy_band_rest]]
+                    bands_X = [bands_X_flux[i]]
+                else:
+                    args_X += [[times_rest, lum, err_rest, energy_band_rest]]
+                    bands_X += [bands_X_flux[i]]
+        
+        # Process args_X_upperlim_flux
+        if args_X_upperlim_flux is not None:
+            if bands_X_upperlim_flux is None:
+                raise ValueError("bands_X_upperlim_flux must be provided when args_X_upperlim_flux is provided")
+            if len(bands_X_upperlim_flux) != len(args_X_upperlim_flux):
+                raise ValueError(f"Length of bands_X_upperlim_flux ({len(bands_X_upperlim_flux)}) must match length of args_X_upperlim_flux ({len(args_X_upperlim_flux)})")
+            # Use redshift from manyTDE if available, otherwise require it
+            z_to_use = redshift if redshift is not None else (self.redshift if hasattr(self, 'redshift') else None)
+            if z_to_use is None:
+                raise ValueError("redshift must be provided when using observer-frame X-ray flux inputs (or use manyTDE_name which provides redshift)")
+            
+            for i, flux_data in enumerate(args_X_upperlim_flux):
+                if len(flux_data) != 4:
+                    raise ValueError(f"args_X_upperlim_flux[{i}] must have format [times, fluxes, N_sigma, [E_low, E_high]]")
+                times_obs, flux_obs, N_sigma, energy_band = flux_data
+                # For upper limits, convert flux to luminosity (N_sigma stays the same)
+                times_rest, lum, _, energy_band_rest = self._flux_to_xray_luminosity(
+                    times_obs, flux_obs, np.ones_like(flux_obs), energy_band, z_to_use
+                )
+                # N_sigma remains unchanged
+                if args_X_upperlim == []:
+                    args_X_upperlim = [[times_rest, lum, N_sigma, energy_band_rest]]
+                    bands_X_upperlim = [bands_X_upperlim_flux[i]]
+                else:
+                    args_X_upperlim += [[times_rest, lum, N_sigma, energy_band_rest]]
+                    bands_X_upperlim += [bands_X_upperlim_flux[i]]
+        
+        # Check for duplicate band names (warn but don't error).
+        # NB: manyTDE bands are appended to bands_UV above, so they must NOT be
+        # counted again from manyTDE_bands -- doing so made this warning fire on
+        # every single manyTDE load, which trained users to ignore it.
+        all_band_names = []
+        if bands_UV is not None:
+            all_band_names.extend(bands_UV)
+        if bands_UV_upperlim is not None:
+            all_band_names.extend(bands_UV_upperlim)
+        if bands_X is not None:
+            all_band_names.extend(bands_X)
+        if bands_X_upperlim is not None:
+            all_band_names.extend(bands_X_upperlim)
+        if len(all_band_names) != len(set(all_band_names)):
+            duplicates = [name for name in set(all_band_names) if all_band_names.count(name) > 1]
+            warn(f"Duplicate band names found: {duplicates}. This may cause issues when accessing bands.", stacklevel=2)
 
         self.args_UV=args_UV
         self.args_UV_upperlim=args_UV_upperlim
+        self.args_X=args_X
         self.args_X_upperlim=args_X_upperlim
 
         # Setting the dictionary attributes:
@@ -200,7 +482,7 @@ class Data_Set:
             if band in __lc_color_dict.keys():
                 self.band_colours[band] = __lc_color_dict[band]
             else:
-                print('No default colour for band {1}, colour for this band currently default matplotlib colour {2}.'.format(band, i))
+                print('No default colour for band {0}, colour for this band currently default matplotlib colour {1}.'.format(band, i))
                 self.band_colours[band] = __back_up_colors[i]
             
             self.band_markers[band] = 'v'
@@ -278,7 +560,10 @@ class Data_Set:
 
     def get_lum_distance(self, z):
         """
-        This uses the most recent Planck values of the cosmological parameters and redshift to get distance in Mpc. 
+        Calculate luminosity distance using astropy cosmology.
+        
+        Uses Planck 2018 cosmology parameters (Planck18) to calculate luminosity distance.
+        This replaces the previous manual integration with a standard, well-tested implementation.
         
         Positional Arguments
         ------------------------------------------------------------------------------------------------------------------------
@@ -291,14 +576,191 @@ class Data_Set:
             distance in Mpc as calculated from the redshift
         """
         if z <= 0:
-            dL = 1
-        else:            
+            return 1.0  # Mpc (same as current behavior)
+        
+        # Use Planck 2018 cosmology
+        cosmo = cosmology.Planck18
+        d_L = cosmo.luminosity_distance(z).to(units.Mpc).value
+        return d_L
 
-            dH = c*1e-3/H0 # Mpc
+    ######################################
+    ## Conversion utilities for observer-frame to rest-frame
+    ######################################
 
-            z_int = np.logspace(-8, np.log10(z), 100000)
-            dL = (1 + z) * dH * simpson( 1/(omega_m * (1 + z_int)**3 + omega_l)**0.5, z_int )
-        return dL
+    def _ab_mag_to_flux(self, mag, frequency_Hz):
+        """
+        Convert AB magnitude to observer-frame flux.
+        
+        Parameters
+        ----------
+        mag : float or array
+            AB magnitude(s)
+        frequency_Hz : float
+            Observer-frame frequency in Hz
+        
+        Returns
+        -------
+        flux : float or array
+            Observer-frame flux in erg/s/cm²/Hz
+        """
+        # AB magnitude definition: m_AB = -2.5 * log10(f_ν) - 48.6
+        # Rearranging: f_ν = 10^(-0.4 * (m_AB + 48.6))
+        flux = 10**(-0.4 * (mag + 48.6))  # erg/s/cm²/Hz
+        return flux
+
+    def _flux_to_luminosity(self, times_obs, flux_obs, err_obs, frequency_obs_Hz, 
+                           redshift):
+        """
+        Convert observer-frame flux to rest-frame vL_v luminosity.
+        
+        Also converts times and frequencies from observer frame to rest frame.
+        Distance is always calculated from redshift using astropy.cosmology.
+        
+        Parameters
+        ----------
+        times_obs : array
+            Observer-frame times (days)
+        flux_obs : array
+            Observer-frame flux in erg/s/cm²/Hz
+        err_obs : array
+            Observer-frame flux uncertainties in erg/s/cm²/Hz
+        frequency_obs_Hz : float
+            Observer-frame frequency in Hz
+        redshift : float
+            Redshift of the source
+        
+        Returns
+        -------
+        times_rest : array
+            Rest-frame times (days)
+        vL_v : array
+            Rest-frame vL_v luminosities in erg/s
+        err_rest : array
+            Rest-frame luminosity uncertainties in erg/s
+        frequency_rest_Hz : float
+            Rest-frame frequency in Hz
+        """
+        # Calculate distance from redshift
+        distance_Mpc = self.get_lum_distance(redshift)
+        
+        # Convert times: t_rest = t_obs / (1 + z)
+        times_rest = times_obs / (1 + redshift)
+        
+        # Convert frequencies: ν_rest = ν_obs * (1 + z)
+        frequency_rest_Hz = frequency_obs_Hz * (1 + redshift)
+        
+        # Convert flux to vL_v: vL_v = ν_obs × 4π d_L² × f_ν(ν_obs)
+        # Note: The (1+z) factors cancel in vL_v calculation
+        d_L_cm = distance_Mpc * units.Mpc.to(units.cm)
+        convert_fac = 4 * np.pi * d_L_cm**2.0
+        vL_v = flux_obs * convert_fac * frequency_obs_Hz  # erg/s
+        
+        # Convert errors (same scaling as flux)
+        err_rest = err_obs * convert_fac * frequency_obs_Hz  # erg/s
+        
+        return times_rest, vL_v, err_rest, frequency_rest_Hz
+
+    def _ab_mag_to_luminosity(self, times_obs, mag_obs, err_obs, frequency_obs_Hz,
+                              redshift):
+        """
+        Convert AB magnitude to rest-frame vL_v luminosity.
+        
+        Combines AB magnitude to flux conversion and flux to luminosity conversion.
+        Also converts times and frequencies from observer frame to rest frame.
+        Distance is always calculated from redshift using astropy.cosmology.
+        
+        Parameters
+        ----------
+        times_obs : array
+            Observer-frame times (days)
+        mag_obs : array
+            AB magnitudes
+        err_obs : array
+            AB magnitude uncertainties
+        frequency_obs_Hz : float
+            Observer-frame frequency in Hz
+        redshift : float
+            Redshift of the source
+        
+        Returns
+        -------
+        times_rest : array
+            Rest-frame times (days)
+        vL_v : array
+            Rest-frame vL_v luminosities in erg/s
+        err_rest : array
+            Rest-frame luminosity uncertainties in erg/s
+        frequency_rest_Hz : float
+            Rest-frame frequency in Hz
+        """
+        # Convert AB magnitude to flux
+        flux_obs = self._ab_mag_to_flux(mag_obs, frequency_obs_Hz)
+        
+        # Convert magnitude errors to flux errors
+        # For small errors: Δf/f ≈ 0.4 * ln(10) * Δm ≈ 0.921 * Δm
+        # More precisely: f = 10^(-0.4*(m+48.6)), so df/dm = -0.4*ln(10)*f
+        # For error propagation: σ_f = |df/dm| * σ_m = 0.4*ln(10)*f*σ_m
+        err_flux = 0.4 * np.log(10) * flux_obs * err_obs
+        
+        # Convert flux to luminosity
+        return self._flux_to_luminosity(times_obs, flux_obs, err_flux, 
+                                       frequency_obs_Hz, redshift)
+
+    def _flux_to_xray_luminosity(self, times_obs, flux_obs, err_obs, energy_band, redshift):
+        """
+        Convert observer-frame X-ray flux to rest-frame integrated luminosity.
+        
+        WARNING: This is a simplified conversion. For accurate X-ray analysis,
+        proper K-corrections and energy band integration should be performed.
+        
+        Parameters
+        ----------
+        times_obs : array
+            Observer-frame times (days)
+        flux_obs : array
+            Observer-frame integrated flux (erg/s/cm²) over energy band
+        err_obs : array
+            Observer-frame flux uncertainties (erg/s/cm²)
+        energy_band : list
+            [E_low, E_high] in keV (observer frame)
+        redshift : float
+            Redshift of the source
+        
+        Returns
+        -------
+        times_rest : array
+            Rest-frame times (days)
+        lum : array
+            Rest-frame integrated luminosity (erg/s)
+        err_rest : array
+            Rest-frame luminosity uncertainties (erg/s)
+        energy_band_rest : list
+            [E_low, E_high] in keV (rest frame)
+        """
+        # Warn about simplified conversion
+        warn("X-ray flux to luminosity conversion uses simplified formula L = 4π d_L² × F. "
+             "For accurate analysis, proper K-corrections and energy band integration should be performed. "
+             "See X-ray astronomy references for details.", stacklevel=3)
+        
+        # Convert times: t_rest = t_obs / (1 + z)
+        times_rest = times_obs / (1 + redshift)
+        
+        # Convert energy band: E_rest = E_obs * (1 + z)
+        # E = h*nu, so energies blueshift into the rest frame exactly as
+        # frequencies do (cf. the UV path above and gr_disc's g = 1/(1+z)).
+        energy_band_rest = [energy_band[0] * (1 + redshift),
+                            energy_band[1] * (1 + redshift)]
+        
+        # Calculate distance from redshift
+        distance_Mpc = self.get_lum_distance(redshift)
+        
+        # Convert flux to luminosity: L = 4π d_L² × F
+        d_L_cm = distance_Mpc * units.Mpc.to(units.cm)
+        convert_fac = 4 * np.pi * d_L_cm**2.0
+        lum = flux_obs * convert_fac  # erg/s
+        err_rest = err_obs * convert_fac  # erg/s
+        
+        return times_rest, lum, err_rest, energy_band_rest
 
 
     ######################################
@@ -516,7 +978,12 @@ class Data_Set:
             fig = plt.figure()
             ax = fig.add_subplot()
         else:
-            ax = fig.get_axes()[0]
+            # Check if figure has axes, if not add one
+            axes = fig.get_axes()
+            if len(axes) == 0:
+                ax = fig.add_subplot()
+            else:
+                ax = axes[0]
 
         x_lims = ax.get_xlim()
         y_lims = ax.get_ylim()
@@ -529,9 +996,23 @@ class Data_Set:
             x_lim_high = max([x_lims[1], max(t)+10])
             xlim = (x_lim_low, x_lim_high)
         if ylim is None:
-            y_lim_low = min([y_lims[0], min(l[l>0])*0.67])
-            y_lim_high = max([y_lims[1], max(l)*1.5])
-            ylim = (y_lim_low, y_lim_high)
+            # Fold the existing axis limits in with this band's range, so that
+            # plotting several bands onto one figure widens rather than clips.
+            #
+            # But a *fresh* axes reports (0.0, 1.0), and folding that 0.0 into a
+            # log-scaled lower limit makes matplotlib discard the whole ylim with
+            # a warning -- which is why the very first band plotted used to come
+            # out autoscaled.  Only use the existing limits when they are usable
+            # on the scale we are about to set.
+            positive = l[l > 0]
+            lows = [min(positive) * 0.67] if len(positive) else []
+            highs = [max(l) * 1.5] if len(l) else []
+            usable = (yscale != 'log')
+            if usable or y_lims[0] > 0:
+                lows.append(y_lims[0])
+            if usable or y_lims[1] > 0:
+                highs.append(y_lims[1])
+            ylim = (min(lows), max(highs)) if lows and highs else None
         
 
         if upperlim:

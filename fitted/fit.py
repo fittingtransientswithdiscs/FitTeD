@@ -2,6 +2,7 @@ import os
 import numpy as np
 import emcee
 import pickle
+import multiprocessing
 import matplotlib.pyplot as plt 
 import corner
 from scipy.optimize import minimize
@@ -9,11 +10,61 @@ from . import prior as pr
 from .models import *
 from .constants import *
 
+
 __all__ = ["NoFitYetError", "Fit"]
 
 
 class NoFitYetError(Exception):
     pass
+
+# Module-level variables for multiprocessing workers
+_worker_model = None
+_worker_prior = None
+
+def _init_worker(model, prior):
+    """Initialize worker process with model and prior.
+    
+    This function is called once per worker process when the pool is created.
+    It sets up the model and prior in module-level variables so they can be
+    accessed by the worker function without pickling self.
+    """
+    global _worker_model, _worker_prior
+    _worker_model = model
+    _worker_prior = prior
+
+def _worker_log_probability(pars):
+    """Worker function for multiprocessing - uses module-level variables.
+    
+    This function is called by emcee to evaluate log-probability in worker
+    processes. It uses module-level variables set by _init_worker, avoiding
+    the need to pickle self or the model on every evaluation.
+    """
+    global _worker_model, _worker_prior
+    if _worker_model is None or _worker_prior is None:
+        raise RuntimeError("Worker not initialized - _init_worker must be called first")
+    
+    ln_prior = _worker_prior(pars)
+    if not np.isfinite(ln_prior):
+        return -np.inf
+    return ln_prior + _worker_model.log_likelihood(pars)
+
+# LaTeX labels for the seven key (disc) parameters.  These are the only ones
+# that change name under the fit_log_* / fit_cos_incl reparameterisations, so
+# the plotting routines patch just these and leave the early/rise labels alone.
+_KEY_PAR_LABELS = {
+    "log_mh":     r"$\log M_\bullet$",
+    "a_bh":       r"$a_\bullet$",
+    "m_disc":     r"$M_{\rm disc}$",
+    "log_m_disc": r"$\log M_{\rm disc}$",
+    "r0":         r"$r_0$",
+    "log_r0":     r"$\log r_0$",
+    "tvi":        r"$t_{\rm visc}$",
+    "log_tvi":    r"$\log t_{\rm visc}$",
+    "t0":         r"$t_0$",
+    "incl":       r"$i$",
+    "cos_incl":   r"$\cos i$",
+}
+
 
 class Fit():
     def __init__(self, model=None, prior=None):
@@ -48,6 +99,9 @@ class Fit():
         self.sampler = None
         self.chain = None
         self.chain_probabilities = None 
+        # Optional: names for parameters in the chain (used for robust conversions when sampling).
+        # When present, enables auto-detection of whether the chain used m_disc or log_m_disc.
+        self._chain_param_names = None
 
     ######################################
     ## Saving and loading 
@@ -138,6 +192,24 @@ class Fit():
         return fig
 
 
+    def _label_key_pars(self, labels):
+        """Relabel the key parameters using the names the chain actually holds.
+
+        A chain fit with fit_log_m_disc / fit_log_r0 / fit_log_tvi / fit_cos_incl
+        stores log10(m_disc), log10(r0), log10(tvi) and cos(incl).  Without this
+        the hardcoded labels would say "M_disc" and "i" over log and cosine
+        values -- a silently wrong figure.  When the chain holds the linear
+        parameters (or predates _chain_param_names) the labels are unchanged.
+        """
+        names = getattr(self, "_chain_param_names", None)
+        if not names:
+            return labels
+        out = list(labels)
+        for i, nm in enumerate(list(names)[:7]):
+            if i < len(out) and nm in _KEY_PAR_LABELS:
+                out[i] = _KEY_PAR_LABELS[nm]
+        return out
+
     def plot_corner(self, just_disc=True, f_discard=0.5, fig=None, color=None):#... other options. 
         """
             Plots emcee output as a corner plot.
@@ -161,6 +233,7 @@ class Fit():
         if just_disc:
             labels=[r"$\log M_\bullet$", r"$a_\bullet$", r"$M_{\rm disc}$", r"$r_0$", r"$t_{\rm visc}$", r"$t_0$",r"$i$"]
             i_corner = np.asarray([flat_samples[:, iii] for iii in range(7)]).T
+            labels = self._label_key_pars(labels)
             fig = corner.corner(i_corner, color=color, plot_contours=True, plot_datapoints=False, smooth=True, labels=labels, density=True, fig=fig)
         else:
             if not self.model.rise:
@@ -173,6 +246,7 @@ class Fit():
                     labels=[r"$\log M_\bullet$", r"$a_\bullet$", r"$M_{\rm disc}$", r"$r_0$", r"$t_{\rm visc}$", r"$t_0$", r"$i$", r"$\log L$", r"$t_{\rm decay}$", r"$t_{\rm peak}$", r"$\sigma_{\rm rise}$", r"$\log T$"]
                 elif self.model.decay_type == 'pl':
                     labels=[r"$\log M_\bullet$", r"$a_\bullet$", r"$M_{\rm disc}$", r"$r_0$", r"$t_{\rm visc}$", r"$t_0$", r"$i$", r"$\log L$", r"$t_{\rm fb}$", r"$p$", r"$t_{\rm peak}$", r"$\sigma_{\rm rise}$", r"$\log T$"]
+            labels = self._label_key_pars(labels)
             fig = corner.corner(flat_samples, color=color, plot_contours=True, plot_datapoints=False, smooth=True, labels=labels, density=True, fig=fig)
         
         return fig
@@ -209,6 +283,7 @@ class Fit():
                 elif self.model.decay_type == 'pl':
                     labels=[r"$\log M_\bullet$", r"$a_\bullet$", r"$M_{\rm disc}$", r"$r_0$", r"$t_{\rm visc}$", r"$t_0$", r"$i$", r"$\log L$", r"$t_{\rm fb}$", r"$p$", r"$t_{\rm peak}$", r"$\sigma_{\rm rise}$", r"$\log T$"]
         
+        labels = self._label_key_pars(labels)
         if fig is None:
             fig, axes = plt.subplots(len(labels), sharex=True, figsize=(3*len(labels), 2*len(labels)))
         else:
@@ -285,26 +360,35 @@ class Fit():
 
         while k < N:
             j = np.random.randint(len(flat_samples))
+            sample = flat_samples[-j]
             if not m.rise:
                 if m.decay:
                     if m.decay_type == 'exp':
-                        log_mh, a_bh, m_disc, r0, tvi, t0, incl, log_L, tdecay, log_T = flat_samples[-j]
+                        converted = m.convert_parameters(sample, param_names=getattr(self, "_chain_param_names", None)) if hasattr(m, "convert_parameters") else sample
+                        log_mh, a_bh, m_disc, r0, tvi, t0, incl, log_L, tdecay, log_T = converted
                     elif m.decay_type == 'pl':
-                        log_mh, a_bh, m_disc, r0, tvi, t0, incl, log_L, tdecay, p, log_T = flat_samples[-j]
+                        converted = m.convert_parameters(sample, param_names=getattr(self, "_chain_param_names", None)) if hasattr(m, "convert_parameters") else sample
+                        log_mh, a_bh, m_disc, r0, tvi, t0, incl, log_L, tdecay, p, log_T = converted
                 else:
-                    log_mh, a_bh, m_disc, r0, tvi, t0, incl = flat_samples[-j]
+                    converted = m.convert_parameters(sample, param_names=getattr(self, "_chain_param_names", None)) if hasattr(m, "convert_parameters") else sample
+                    log_mh, a_bh, m_disc, r0, tvi, t0, incl = converted
             else:
                 if m.decay:
                     if m.decay_type == 'exp':
-                        log_mh, a_bh, m_disc, r0, tvi, t0, incl, log_L, tdecay, t_peak, sigma, log_T = flat_samples[-j]
+                        converted = m.convert_parameters(sample, param_names=getattr(self, "_chain_param_names", None)) if hasattr(m, "convert_parameters") else sample
+                        log_mh, a_bh, m_disc, r0, tvi, t0, incl, log_L, tdecay, t_peak, sigma, log_T = converted
                     elif m.decay_type == 'pl':
-                        log_mh, a_bh, m_disc, r0, tvi, t0, incl, log_L, tdecay, p, t_peak, sigma, log_T = flat_samples[-j]
+                        converted = m.convert_parameters(sample, param_names=getattr(self, "_chain_param_names", None)) if hasattr(m, "convert_parameters") else sample
+                        log_mh, a_bh, m_disc, r0, tvi, t0, incl, log_L, tdecay, p, t_peak, sigma, log_T = converted
                 else:
-                    log_mh, a_bh, m_disc, r0, tvi, t0, incl = flat_samples[-j]
+                    converted = m.convert_parameters(sample, param_names=getattr(self, "_chain_param_names", None)) if hasattr(m, "convert_parameters") else sample
+                    log_mh, a_bh, m_disc, r0, tvi, t0, incl = converted
                     
 
 
-            delta =  abs((flat_samples[-j]-medians)/stds)
+            # Sigma-clipping is done in the *native chain parameterization* (linear or log),
+            # i.e. before any conversion of disc mass.
+            delta =  abs((sample-medians)/stds)
             if (delta>ignore_sigma).any():
                 pass
             else:
@@ -456,11 +540,13 @@ class Fit():
         k=0
         while k < N:
             j = np.random.randint(len(flat_samples))
-            delta =  abs((flat_samples[-j][:6]-medians[:6])/stds[:6])
+            sample = flat_samples[-j]
+            delta =  abs((sample[:6]-medians[:6])/stds[:6])
             if (delta>ignore_sigma).any():
                 pass
             else:
-                log_mh, a_bh, m_disc, r0, tvi, t0 = flat_samples[-j][:6]
+                converted = m.convert_parameters(sample, param_names=getattr(self, "_chain_param_names", None)) if hasattr(m, "convert_parameters") else sample
+                log_mh, a_bh, m_disc, r0, tvi, t0 = converted[:6]
                 if as_eddington:
                     ls[k, :] = m.get_EddingtonRatio(t_plot-t0, log_mh, a_bh, m_disc, r0, tvi, t0)
                 else:
@@ -516,7 +602,7 @@ class Fit():
                                 ylabel=r'$\dot M_{\rm acc}(r_I)$ [g/s]', xlabel=r'Time [days]', 
                                 ylim=None, xlim=None, color='k', alpha=0.3, 
                                 save_posterior=False, save_name='save_mdot.txt'):
-        """
+        r"""
             Plots emcee output as isco accretion rate posteriors. For analysis purposes.
 
             Input:
@@ -563,11 +649,13 @@ class Fit():
         k=0
         while k < N:
             j = np.random.randint(len(flat_samples))
-            delta =  abs((flat_samples[-j][:6]-medians[:6])/stds[:6])
+            sample = flat_samples[-j]
+            delta =  abs((sample[:6]-medians[:6])/stds[:6])
             if (delta>ignore_sigma).any():
                 pass
             else:
-                log_mh, a_bh, m_disc, r0, tvi, t0 = flat_samples[-j][:6]
+                converted = m.convert_parameters(sample, param_names=getattr(self, "_chain_param_names", None)) if hasattr(m, "convert_parameters") else sample
+                log_mh, a_bh, m_disc, r0, tvi, t0 = converted[:6]
                 if as_eddington:
                     mdots[k, :] = -m.get_EddingtonAccretionRatio(t_plot-t0, log_mh, a_bh, m_disc, r0, tvi, t0)[1][:, 1]## negative sign as accretion inwards
                 else:
@@ -623,7 +711,7 @@ class Fit():
                                 ylabel=r'$\Sigma$ [g/cm$^2$]', xlabel=r'$r/r_g$', 
                                 ylim=None, xlim=None, colors=['b'], alpha=0.3, 
                                 rmin=6, rmax=2000, legend=True):
-        """
+        r"""
             Plots emcee output as disc density posteriors. For analysis purposes.
 
             Input:
@@ -676,6 +764,11 @@ class Fit():
         if type(t_plot) != type([]):
             if type(t_plot) != type(np.asarray([])):
                 t_plot = [t_plot]
+        
+        # Ensure colors list is long enough (cycle through if needed)
+        if len(colors) < len(t_plot):
+            # Repeat colors to match length of t_plot
+            colors = (colors * ((len(t_plot) // len(colors)) + 1))[:len(t_plot)]
 
         ss = np.zeros(len(t_plot)*N*Nr).reshape(len(t_plot), Nr, N)
         rr = np.zeros(N*Nr).reshape(Nr, N)
@@ -685,11 +778,13 @@ class Fit():
 
         while k < N:
             j = np.random.randint(len(flat_samples))
-            delta =  abs((flat_samples[-j][:6]-medians[:6])/stds[:6])
+            sample = flat_samples[-j]
+            delta =  abs((sample[:6]-medians[:6])/stds[:6])
             if (delta>ignore_sigma).any():
                 pass
             else:
-                log_mh, a_bh, m_disc, r0, tvi, t0 = flat_samples[-j][:6]
+                converted = m.convert_parameters(sample, param_names=getattr(self, "_chain_param_names", None)) if hasattr(m, "convert_parameters") else sample
+                log_mh, a_bh, m_disc, r0, tvi, t0 = converted[:6]
                 r, s = m.get_Density(t_plot-t0, log_mh, a_bh, m_disc, r0, tvi, t0, N=Nr)
                 rr[:, k] = r
                 rr2[:, k] = r * G * 10**log_mh * Ms /c**2.0 * 100## cgs units
@@ -956,46 +1051,61 @@ class Fit():
         
         out = minimize(to_minimize, x0=init_guess, bounds=self._log_prior.as_bounds(), method=method, options=options)
         
-        if print_best_fit == True:
-            log_mh, a_bh, m_d, r0, tvi, t0, incl = out.x[:7]
-            if not self.model.rise:
-                if self.model.decay_type=='exp':
-                    log_L, t_decay, log_T = out.x[7:]
-                elif self.model.decay_type=='pl':
-                    log_L, t_decay, p, log_T = out.x[7:]
-            else:
-                if self.model.decay_type=='exp':
-                    log_L, t_decay, t_peak, sigma, log_T = out.x[7:]
-                elif self.model.decay_type=='pl':
-                    log_L, t_decay, p, t_peak, sigma, log_T = out.x[7:]
+        if print_best_fit:
+            # Report PHYSICAL values, whatever space the fit was performed in.
+            #
+            # This used to unpack out.x positionally and print it under physical
+            # labels.  With the v2.0 defaults -- log_m_disc, log_r0, log_tvi,
+            # cos_incl -- that printed things like "Disc mass = -0.242 solar
+            # masses" and "Inclination angle = 0.3 degrees".  It also assumed the
+            # early-time parameters always exist, so it raised a ValueError for
+            # any model built with decay=False.
+            key_names = list(self.model.default_key_pars)
+            early_names = list(getattr(self.model, 'default_early_pars', []))
+            names = key_names + early_names
+            phys = self.model.convert_parameters(out.x, names)
 
-            if print_best_fit:
-                print(" ")
-                print(" The fit {:s} successful".format(("was" if out.success else "was NOT")) )
-                print(" scipy message",out.message)######for debugging
-                print(" The best fitting parameters are: ")
-                print(" log_10 Black hole mass = {:.3f}".format(log_mh)," solar masses",flush=True)
-                print(" Black hole spin = {:.3f}".format(a_bh),flush=True)
-                print(" Disc mass = {:.3f}".format(m_d)," solar masses",flush=True)
-                print(" Initial radius = {:.2f}".format(r0)," r_g",flush=True)
-                print(" Viscous timescale = {:.1f}".format(tvi)," days",flush=True)
-                print(" Time offset = {:.1f}".format(t0)," days",flush=True)
-                print(" Inclination angle = {:.1f}".format(incl)," degrees",flush=True)
-                print(" ")
-                print(" ")
+            physical_key = dict(zip(
+                ["log_mh", "a_bh", "m_disc", "r0", "tvi", "t0", "incl"], phys[:7]))
+            early = dict(zip(early_names, phys[len(key_names):]))
+
+            print(" ")
+            print(" The fit {:s} successful".format("was" if out.success else "was NOT"))
+            print(" scipy message", out.message)
+            print(" The best fitting parameters are: ")
+            print(" log_10 Black hole mass = {:.3f}".format(physical_key["log_mh"]),
+                  " solar masses", flush=True)
+            print(" Black hole spin = {:.3f}".format(physical_key["a_bh"]), flush=True)
+            print(" Disc mass = {:.4g}".format(physical_key["m_disc"]),
+                  " solar masses", flush=True)
+            print(" Initial radius = {:.2f}".format(physical_key["r0"]), " r_g", flush=True)
+            print(" Viscous timescale = {:.1f}".format(physical_key["tvi"]), " days", flush=True)
+            print(" Time offset = {:.1f}".format(physical_key["t0"]), " days", flush=True)
+            print(" Inclination angle = {:.1f}".format(physical_key["incl"]),
+                  " degrees", flush=True)
+            print(" ")
+
+            if early_names:
                 print(" The early time parameters are: ")
-                print(" The early time luminosity is: {:.3f}".format(log_L), " log_10(erg/s) at 6e14 Hz. ")
-                if self.model.decay_type=='exp':
-                    print(" The early time decay rate is: {:.3f}".format(t_decay), " days. ")
-                elif self.model.decay_type=='pl':
-                    print(" The fallback time is: {:.3f}".format(t_decay), " days. ")
-                    print(" The powerlaw index is: {:.3f}".format(p), ". ")
-                if self.model.rise:
-                    print(" The peak time is: {:.3f}".format(t_peak), " days. ")
-                    print(" The rise time is: {:.3f}".format(sigma), " days. ")
-                print(" The early time temperature is: {:.3f}".format(log_T), " log_10(Kelvin). ")
+                if "log_L" in early:
+                    print(" The early time luminosity is: {:.3f}".format(early["log_L"]),
+                          " log_10(erg/s) at 6e14 Hz. ")
+                if "t_decay" in early:
+                    print(" The early time decay rate is: {:.3f}".format(early["t_decay"]), " days. ")
+                if "t_fb" in early:
+                    print(" The fallback time is: {:.3f}".format(early["t_fb"]), " days. ")
+                if "p" in early:
+                    print(" The powerlaw index is: {:.3f}".format(early["p"]), ". ")
+                if "t_peak" in early:
+                    print(" The peak time is: {:.3f}".format(early["t_peak"]), " days. ")
+                if "sigma" in early:
+                    print(" The rise time is: {:.3f}".format(early["sigma"]), " days. ")
+                if "log_T" in early:
+                    print(" The early time temperature is: {:.3f}".format(early["log_T"]),
+                          " log_10(Kelvin). ")
                 print(" ")
-        
+
+
         if out.success:
             self.last_best_fit = out
             return self.last_best_fit_pars
@@ -1004,7 +1114,97 @@ class Fit():
         self.last_best_fit = out
         return self.last_best_fit_pars
 
+    def _check_backend_compression_support(self):
+        """
+        Check if emcee's HDFBackend supports compression.
         
+        Returns
+        -------
+        supports_compression : bool
+            True if compression is supported
+        """
+        try:
+            import inspect
+            sig = inspect.signature(emcee.backends.HDFBackend.__init__)
+            return 'compression' in sig.parameters
+        except Exception:
+            return False
+
+    def _compute_gelman_rubin(self, chain):
+        """
+        Compute Gelman-Rubin statistic (R-hat) for convergence checking.
+        
+        Parameters
+        ----------
+        chain : array
+            MCMC chain of shape (nsteps, nwalkers, ndim)
+        
+        Returns
+        -------
+        rhat : array
+            R-hat statistic for each parameter (ndim,)
+        """
+        nsteps, nwalkers, ndim = chain.shape
+        
+        if nsteps < 2:
+            return np.full(ndim, np.inf)  # Not enough steps
+        
+        # Compute within-chain variance (W)
+        # Mean for each walker
+        walker_means = np.mean(chain, axis=0)  # (nwalkers, ndim)
+        # Variance for each walker
+        walker_vars = np.var(chain, axis=0, ddof=1)  # (nwalkers, ndim)
+        # Average within-chain variance
+        W = np.mean(walker_vars, axis=0)  # (ndim,)
+        
+        # Compute between-chain variance (B)
+        # Overall mean for each parameter
+        overall_means = np.mean(chain, axis=(0, 1))  # (ndim,)
+        # Between-chain variance
+        B = (nsteps / (nwalkers - 1)) * np.sum((walker_means - overall_means)**2, axis=0)  # (ndim,)
+        
+        # Compute pooled variance
+        var_pooled = ((nsteps - 1) / nsteps) * W + (1 / nsteps) * B
+        
+        # R-hat
+        rhat = np.sqrt(var_pooled / W)
+        
+        return rhat
+
+
+    def compute_rhat(self, chain=None, f_discard=0.0):
+        """
+        Gelman-Rubin convergence statistic (R-hat) for each parameter.
+
+        Treats each emcee walker as a chain.  Values below about 1.01 are the
+        usual convergence criterion; well above that means the walkers have not
+        yet forgotten where they started.
+
+        Parameters
+        ----------
+        chain : array or None
+            Chain of shape (nsteps, nwalkers, ndim).  Defaults to `self.chain`.
+        f_discard : float
+            Fraction of the chain to discard as burn-in before computing R-hat.
+            Defaults to 0, i.e. use everything.
+
+        Returns
+        -------
+        rhat : np.ndarray
+            R-hat for each parameter, ordered as
+            `model.default_key_pars + model.default_early_pars`.
+        """
+        if chain is None:
+            chain = getattr(self, 'chain', None)
+        if chain is None:
+            raise ValueError("No chain available -- run run_chain() first, "
+                             "or pass a chain explicitly.")
+        chain = np.asarray(chain)
+        if f_discard:
+            chain = chain[int(f_discard * len(chain)):]
+        return self._compute_gelman_rubin(chain)
+
+
     ######################################
     ## MCMC time
     ######################################
@@ -1016,6 +1216,11 @@ class Fit():
                         simple_chain_save=None,
                         p0=None, 
                         pool=None, pos = None,
+                        use_parallel=True, n_workers=None,
+                        moves=None, use_optimized_moves=True,
+                        backend_compress=False, backend_compress_opts=None,
+                        check_convergence=False, convergence_check_interval=100,
+                        target_rhat=1.01, min_steps=500,
                         **kwargs):
         """
             Run a MCMC chain to find best fitting parameters, using emcee (https://emcee.readthedocs.io/en/stable/). 
@@ -1030,6 +1235,32 @@ class Fit():
                 nwalkers -- number of walkers
                 nsteps -- number of steps
                 pos -- initial walker position (if None calculates internally). 
+
+            Input (parallelization):
+                use_parallel -- boolean. If True (default), automatically create a multiprocessing pool to use multiple cores.
+                n_workers -- int or None. Number of worker processes. If None (default), uses min(nwalkers, cpu_count()).
+                pool -- multiprocessing pool. If provided, uses this pool. If None and use_parallel=True, creates one automatically.
+
+            Input (moves):
+                moves -- emcee move object or list of (move, weight) tuples. 
+                         If None and use_optimized_moves=True, uses optimized default mixture.
+                use_optimized_moves -- boolean. If True (default) and moves=None, uses 
+                                      optimized move mixture (StretchMove + DEMove + DESnookerMove).
+
+            Input (backend optimization):
+                backend_compress -- bool or str. If True, enables gzip compression. If a string 
+                                   (e.g., 'gzip', 'lzf', 'szip'), uses that compression type. 
+                                   Requires emcee >= 3.1. Default: False.
+                backend_compress_opts -- dict or int. Compression options. For gzip, can be 
+                                        an integer (compression level 1-9). Default: None (uses 
+                                        default compression level 4 for gzip).
+
+            Input (convergence checking):
+                check_convergence -- boolean. If True, monitor Gelman-Rubin statistic and 
+                                    stop early when converged. Default: False.
+                convergence_check_interval -- int. Check convergence every N steps. Default: 100.
+                target_rhat -- float. Target R-hat statistic for convergence. Default: 1.01.
+                min_steps -- int. Minimum steps before checking convergence. Default: 500.
 
             Input (saving/backup):
                 backend_path -- name of path to save backend to. 
@@ -1058,6 +1289,14 @@ class Fit():
             full_pars = [*init_key_pars] + [*self.get_early_model_pars(p0=p0)]
         else:
             full_pars = self.last_best_fit.x
+
+        # Record parameter names for this chain (used later for robust chain sampling / plotting).
+        # This is especially important when models support alternative parameterizations
+        # (e.g. m_disc vs log_m_disc).
+        try:
+            self._chain_param_names = list(self.model.default_key_pars + self.model.default_early_pars)
+        except Exception:
+            self._chain_param_names = None
         
         # Double check that the starting priors don't return a infitine prior
         if not np.isfinite( self.log_prior(full_pars) ):
@@ -1073,7 +1312,42 @@ class Fit():
             if os.path.exists(backend_path) and overwrite_backend:
                 print("Existing %s has been deleted" % backend_path, flush=True)
                 os.remove(backend_path)
-            backend = emcee.backends.HDFBackend(backend_path, name=backend_name)
+            
+            # Setup backend with optional compression
+            backend_kwargs = {"name": backend_name}
+            
+            if backend_compress:
+                # Check if compression is supported
+                compression_supported = self._check_backend_compression_support()
+                
+                if compression_supported:
+                    # Set compression type
+                    if backend_compress is True:
+                        # Default to gzip compression
+                        compression_type = 'gzip'
+                    else:
+                        # User specified compression type (e.g., 'gzip', 'lzf', 'szip')
+                        compression_type = backend_compress
+                    
+                    backend_kwargs["compression"] = compression_type
+                    
+                    # Add compression options if provided
+                    if backend_compress_opts is not None:
+                        backend_kwargs["compression_opts"] = backend_compress_opts
+                    elif compression_type == 'gzip':
+                        # Default gzip compression level (1-9, 4 is a good balance)
+                        backend_kwargs["compression_opts"] = 4
+                    
+                    if progress:
+                        print(f"Using HDF5 compression: {compression_type}", flush=True)
+                else:
+                    # Compression not supported by this emcee version
+                    import warnings
+                    warnings.warn("Backend compression requested but not supported by this emcee version. "
+                                "Compression disabled. Upgrade to emcee >= 3.1 for compression support.")
+            
+            backend = emcee.backends.HDFBackend(backend_path, **backend_kwargs)
+            
             if overwrite_backend:
                 backend.reset(nwalkers, ndim)
             else:
@@ -1091,16 +1365,174 @@ class Fit():
             full_pars[ii_zero] += 1e-2
             pos = full_pars * (1 + scatter * np.random.randn(nwalkers, ndim) )
             
+        # Create pool if needed for parallelization
+        pool_created = False
+        if pool is None and use_parallel:
+            try:
+                # Try to set 'spawn' start method (works best with emcee)
+                # On macOS, use force=True to override if already set
+                # On Linux/other, only set if not already set
+                import platform
+                try:
+                    if platform.system() == 'Darwin':
+                        multiprocessing.set_start_method('spawn', force=True)
+                    else:
+                        # Only set if not already set
+                        current_method = multiprocessing.get_start_method(allow_none=True)
+                        if current_method is None:
+                            multiprocessing.set_start_method('spawn')
+                except RuntimeError:
+                    # Start method already set, or cannot be set (e.g., missing if __name__ == '__main__' guard)
+                    pass
+                
+                if n_workers is None:
+                    n_workers = min(nwalkers, multiprocessing.cpu_count())
+                
+                # Create pool with initializer to set up workers once
+                # This avoids pickling the model on every evaluation
+                pool = multiprocessing.Pool(
+                    n_workers,
+                    initializer=_init_worker,
+                    initargs=(self.model, self._log_prior)
+                )
+                pool_created = True
+                
+                # Warn about NumPy threading if not disabled (helpful for performance)
+                if progress and os.environ.get('OMP_NUM_THREADS', '') != '1':
+                    import warnings
+                    warnings.warn("For optimal parallelization performance, set OMP_NUM_THREADS=1 "
+                                "to avoid conflicts between NumPy threading and multiprocessing. "
+                                "Run: export OMP_NUM_THREADS=1")
+            except Exception as e:
+                # If pool creation fails (e.g., missing if __name__ == '__main__' guard),
+                # provide helpful error message and fall back to serial
+                error_msg = str(e)
+                if "bootstrapping phase" in error_msg or "if __name__ == '__main__'" in error_msg:
+                    import warnings
+                    warnings.warn("Parallel execution requires 'if __name__ == \"__main__\":' guard in your script. "
+                                "Wrap your code in a main() function and call it with 'if __name__ == \"__main__\": main()'. "
+                                "Falling back to serial execution. See documentation for details.")
+                if progress:
+                    print(f"Failed to create parallel pool: {e}. Continuing with serial execution.", flush=True)
+                pool = None
         
+        # Use worker function for multiprocessing, regular method for serial
+        # The worker function uses module-level variables set by _init_worker,
+        # avoiding the need to pickle self or model on every evaluation
         if pool is not None:
-            self.sampler = emcee.EnsembleSampler(nwalkers, ndim, self.log_probability, kwargs=kwargs,
-                                            backend=backend, pool=pool)
+            log_prob_func = _worker_log_probability
+            if progress:
+                print(f"Parallel execution enabled with {n_workers} workers", flush=True)
         else:
-            self.sampler = emcee.EnsembleSampler(nwalkers, ndim, self.log_probability, kwargs=kwargs,
-                                            backend=backend)
+            log_prob_func = self.log_probability
+            if progress and use_parallel:
+                print(f"Serial execution (parallel requested but pool unavailable)", flush=True)
+        
+        # Setup moves
+        moves_to_use = None
+        if moves is not None:
+            # User specified moves
+            moves_to_use = moves
+        elif use_optimized_moves:
+            # Use optimized default mixture
+            try:
+                from emcee import moves as emcee_moves
+                moves_to_use = [
+                    (emcee_moves.StretchMove(a=2.0), 0.5),
+                    (emcee_moves.DEMove(), 0.3),
+                    (emcee_moves.DESnookerMove(), 0.2)
+                ]
+                if progress:
+                    print("Using optimized move mixture (StretchMove + DEMove + DESnookerMove)", flush=True)
+            except (ImportError, AttributeError) as e:
+                # emcee < 3.0 or moves not available, use default
+                import warnings
+                warnings.warn(f"Optimized moves not available ({e}). Using emcee defaults.")
+                moves_to_use = None
+        # else: moves_to_use = None (use emcee defaults)
+        
+        try:
+            if pool is not None:
+                self.sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob_func, kwargs=kwargs,
+                                                    backend=backend, pool=pool, moves=moves_to_use)
+            else:
+                self.sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob_func, kwargs=kwargs,
+                                                backend=backend, moves=moves_to_use)
 
-        # Run chain
-        self.sampler.run_mcmc(pos, nsteps, progress=progress, skip_initial_state_check=True)  # Progress prints out progress bar
+            # Run chain with diagnostics
+            if pool is not None and progress:
+                # Measure time per likelihood evaluation for diagnostics
+                # Use self.log_probability for timing since we're in the main process
+                import time
+                test_start = time.perf_counter()
+                # Use full_pars for test (guaranteed to be 1D) instead of pos[0]
+                test_pars = np.asarray(full_pars).flatten()[:ndim]  # Ensure 1D array
+                _ = self.log_probability(test_pars)  # Test single evaluation in main process
+                test_time = time.perf_counter() - test_start
+                if test_time > 0:
+                    print(f"Estimated time per likelihood evaluation: {test_time*1000:.2f} ms", flush=True)
+                    if test_time < 0.1:  # Less than 100ms
+                        import warnings
+                        warnings.warn("Likelihood evaluations are very fast (< 100ms). "
+                                    "Parallelization overhead may dominate. Consider using more steps "
+                                    "or a more expensive model to see speedup benefits.")
+            
+            # Run chain with optional convergence checking
+            if check_convergence:
+                # Run in chunks, checking convergence periodically
+                steps_completed = 0
+                remaining_steps = nsteps
+                
+                # Ensure we have minimum steps before checking
+                if nsteps < min_steps:
+                    # Run all steps without checking
+                    self.sampler.run_mcmc(pos, nsteps, progress=progress, skip_initial_state_check=True)
+                    steps_completed = nsteps
+                else:
+                    # Run initial steps without checking
+                    initial_steps = min_steps
+                    if initial_steps > 0:
+                        self.sampler.run_mcmc(pos, initial_steps, progress=False, skip_initial_state_check=True)
+                        steps_completed += initial_steps
+                        pos = self.sampler.get_last_sample()
+                        remaining_steps -= initial_steps
+                    
+                    # Run remaining steps with convergence checking
+                    converged = False
+                    while remaining_steps > 0 and not converged:
+                        # Run next chunk
+                        chunk_steps = min(convergence_check_interval, remaining_steps)
+                        self.sampler.run_mcmc(pos, chunk_steps, progress=False, skip_initial_state_check=True)
+                        steps_completed += chunk_steps
+                        remaining_steps -= chunk_steps
+                        
+                        # Check convergence
+                        chain = self.sampler.get_chain()
+                        rhat = self._compute_gelman_rubin(chain)
+                        max_rhat = np.max(rhat)
+                        
+                        if progress:
+                            print(f"Step {steps_completed}/{nsteps}: max R-hat = {max_rhat:.4f}", flush=True)
+                        
+                        if max_rhat < target_rhat:
+                            converged = True
+                            if progress:
+                                print(f"Chain converged at step {steps_completed} (max R-hat = {max_rhat:.4f} < {target_rhat})", flush=True)
+                            break
+                        
+                        pos = self.sampler.get_last_sample()
+                    
+                    # If we stopped early, update progress display
+                    if converged and progress:
+                        print(f"Early stopping: converged after {steps_completed} steps (planned: {nsteps})", flush=True)
+            else:
+                # Run normally without convergence checking
+                self.sampler.run_mcmc(pos, nsteps, progress=progress, skip_initial_state_check=True)
+        finally:
+            # Clean up pool if we created it
+            if pool_created and pool is not None:
+                pool.close()
+                pool.join()
         
         # Get chain
         chain = self.sampler.get_chain()
@@ -1115,32 +1547,4 @@ class Fit():
             np.save(simple_chain_save+'-probs', chain_probs)
         
         return 
-
-    # def run_nested_sampling(self,log_dir):
-        
-    #     # TO DO: add function to change the bounds for the uniform prior
-    #     # warmstart_from_similar_file may also be useful if you have already run a different model
-    #     # If this crashes, add resume = True to the sampler as well as the log_dir for the run
-        
-    #     # Transforms a given prior with values from 0 to 1 to our physical scales:
-    #     def transform(quantile_cube):
-    #         lowers=self._log_prior.as_bounds()[:,0]
-    #         uppers=self._log_prior.as_bounds()[:,1]
-    #         return lowers + (uppers-lowers) * quantile_cube
-
-    #     param_names=self.model.default_key_pars+self.model.default_early_pars
-
-    #     sampler = ultranest.ReactiveNestedSampler(param_names, self.log_likelihood, transform, log_dir=log_dir)
-
-    #     nsteps = 2 * len(param_names)
-    #     # Adding a step sampler since our models have many parameters:
-    #     sampler.stepsampler = ultranest.stepsampler.SliceSampler(
-    #         nsteps=nsteps,
-    #         generate_direction=ultranest.stepsampler.generate_mixture_random_direction
-    #     )
-
-    #     # Running the sampler, will save as it goes
-    #     result2 = sampler.run(frac_remain=0.5)
-
-    #     sampler.print_results()
 

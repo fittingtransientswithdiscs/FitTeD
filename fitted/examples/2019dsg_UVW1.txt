@@ -1,0 +1,54 @@
+# Rest-frame UVW1 photometry of the TDE AT2019dsg, Swift/UVOT.
+# Retrieved from the manyTDE catalogue (van Velzen et al.); the underlying
+# Swift observations are published in Stein et al. 2021.
+# Host-subtracted, rest-frame nu*L_nu at a rest-frame frequency of 1.198891e+15 Hz.
+# Source at a luminosity distance of 236.4 Mpc, peak at t_peak = 58603.87 MJD.
+#
+# ALL points are included, with no cut on flux or on time.
+# Host-subtracted forced photometry is an unbiased measurement that scatters
+# about the true flux, so where the source has faded to near the host level a
+# fraction of the measurements are negative. Discarding those would keep only
+# the positive half of the scatter and bias the late-time flux upwards. Keep
+# them, and bin if you need a positive late-time value. (This band happens to
+# contain no negative points; the policy matters for the ZTF bands, where ~17%
+# are negative.)
+#
+# Rest-frame frequency (Hz): 1.198891e+15
+#
+# Days since peak    nu*L_nu (erg/s)    uncertainty (erg/s)
+  1.633764e+01      4.261613e+43      1.291480e+42
+  2.021372e+01      4.085799e+43      1.863808e+42
+  2.333726e+01      3.870041e+43      1.666264e+42
+  2.645457e+01      3.788864e+43      1.620799e+42
+  2.971733e+01      3.651420e+43      1.219501e+42
+  3.232917e+01      3.297646e+43      1.110736e+42
+  3.598309e+01      3.421345e+43      1.100704e+42
+  3.856917e+01      3.033496e+43      1.049506e+42
+  4.155751e+01      2.985820e+43      1.144019e+42
+  4.492568e+01      3.194420e+43      1.429545e+42
+  4.990727e+01      2.399967e+43      9.248174e+41
+  7.168560e+01      1.743816e+43      8.381083e+41
+  7.645724e+01      1.602364e+43      7.597914e+41
+  8.973962e+01      1.331915e+43      6.832422e+41
+  9.153153e+01      1.104918e+43      8.154954e+41
+  9.545646e+01      1.011671e+43      6.424276e+41
+  9.964733e+01      1.104933e+43      6.509472e+41
+  1.035616e+02      1.284654e+43      7.389143e+41
+  1.089389e+02      8.934554e+42      5.881886e+41
+  1.280655e+02      6.482616e+42      1.049268e+42
+  1.296087e+02      1.081739e+43      9.346110e+41
+  1.571970e+02      5.536832e+42      8.931275e+41
+  1.626520e+02      5.568473e+42      5.194185e+41
+  1.675646e+02      6.151749e+42      6.459628e+41
+  1.724124e+02      3.964104e+42      7.962267e+41
+  1.826257e+02      6.265284e+42      1.159943e+42
+  1.885387e+02      6.962237e+42      9.524464e+41
+  2.135060e+02      2.025433e+42      6.924386e+41
+  3.254699e+02      2.379207e+42      5.131124e+41
+  3.816358e+02      1.788915e+42      5.283124e+41
+  4.739249e+02      9.127834e+41      4.031137e+41
+  4.751865e+02      2.032305e+42      4.983344e+41
+  5.656366e+02      1.106593e+42      3.383804e+41
+  1.193070e+03      8.349273e+41      4.991068e+41
+  1.213045e+03      5.683295e+41      5.251513e+41
+  1.881625e+03      2.414857e+41      7.060700e+41

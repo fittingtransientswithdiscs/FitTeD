@@ -1,0 +1,60 @@
+name: build-wheel
+
+# FitTeD is pure Python.  There is no compiler, no meson, no ninja and no
+# per-platform matrix: one py3-none-any wheel installs everywhere.  If this
+# job ever needs a compiler again, something has gone wrong.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        py: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+
+      - name: Build the wheel
+        run: |
+          python -m pip install -U pip build
+          python -m build --wheel
+
+      - name: Check it is a universal wheel
+        # The whole point of dropping the Fortran.  A wheel tagged anything
+        # other than py3-none-any means a compiled artefact crept back in.
+        run: |
+          ls -l dist/
+          for w in dist/*.whl; do
+            case "$w" in
+              *-py3-none-any.whl) echo "OK  $w" ;;
+              *) echo "NOT universal: $w"; exit 1 ;;
+            esac
+          done
+
+      - name: Install it in a clean environment and import
+        # Installs from the built wheel, not the source tree, so a missing
+        # subpackage or data file fails here rather than for a user.
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/python -m pip install -U pip
+          /tmp/smoke/bin/python -m pip install dist/*.whl
+          cd /tmp
+          /tmp/smoke/bin/python -c "
+          import fitted
+          print('version', fitted.__version__)
+          from fitted.models import GR_disc, GR_disc_plus
+          import importlib.resources as r
+          assert (r.files('fitted') / 'fitted_style.mplstyle').is_file()
+          assert (r.files('fitted') / 'examples' / '2019dsg_Xray.txt').is_file()
+          assert (r.files('fitted.models') / 'chebyshev_coefficients.npy').is_file()
+          print('package data present')
+          "
