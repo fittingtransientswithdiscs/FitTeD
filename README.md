@@ -11,12 +11,14 @@ Please cite if you make use of this code in your research.
 
 To get this all up and running, you will need to run the following:
 
-* Pull into it's own folder
-* Within the folder, run "python3 -m pip install -e ." 
-* The -e flag is required so that the package is editable, and therefore the following steps install the fortran code correctly.
-* Go into the numerical_disc folder (fitted/models/numerical_disc/) 
-* Compile with the "make" command
-* If it cannot find a fortran compiler, set the FC environment variable.  e.g., "make FC='gfortran-mp-9'" 
+* Pull into its own folder
+* Within the folder, run "python3 -m pip install -e ."
+
+That is the whole installation. FitTeD is pure Python: there is no compiler,
+no build step, and the same install works on Linux, macOS and Windows.
+
+* The -e flag is optional. It makes the package editable in place; a plain
+  "python3 -m pip install ." works identically.
 
 To run the below examples you will need to also have manyTDE installed (Andy and Sjoert's database of optical/UV TDE light curves). 
 

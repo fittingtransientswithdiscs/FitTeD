@@ -11,5 +11,25 @@
 # Ignore local pip install
 *.egg-info/
 
-Ignore apple files 
-*.DS_Store
+# Ignore apple files
+.DS_Store
+
+# Ignore build artefacts
+build/
+build.log
+
+# ---------------------------------------------------------------------------
+# Artefacts the tutorials produce when you run them.
+#
+# Tutorial 06 writes an HDF5 chain backend (~15 MB), and fit.save() /
+# data_set.save() write pickles. They are all regenerable, and docs/tutorials is
+# a symlink to tutorials/, so anything left here is also copied into the built
+# website. Keep them out of both.
+# ---------------------------------------------------------------------------
+tutorials/*.h5
+tutorials/*.pickle
+tutorials/.ipynb_checkpoints/
+
+# Documentation build output
+site/
+.cache/
