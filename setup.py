@@ -18,7 +18,11 @@ def get_version(rel_path):
 
 if __name__ == "__main__":
     setup(
-        name='FitTeD',
+        # PyPI distribution name.  NOT the import name -- users still write
+        # `import fitted`.  Plain "fitted" normalises to an unrelated machine
+        # learning package that has held the name on PyPI since 2022, so the
+        # astro- prefix (cf. astropy, astroquery) disambiguates.
+        name='astro-fitted',
         version=get_version("fitted/__init__.py"),
         author='Andrew Mummery',
         author_email='amummery@ias.edu',
@@ -27,6 +31,12 @@ if __name__ == "__main__":
         long_description=read('README.md'),
         long_description_content_type='text/markdown',
         url='https://github.com/fittingtransientswithdiscs/FitTeD',
+        project_urls={
+            'Documentation': 'https://fittingtransientswithdiscs.github.io/FitTeD/',
+            'Source': 'https://github.com/fittingtransientswithdiscs/FitTeD',
+            'Changelog': 'https://github.com/fittingtransientswithdiscs/FitTeD/blob/main/CHANGELOG.md',
+            'Paper': 'https://ui.adsabs.harvard.edu/abs/2025MNRAS.544.2225M/abstract',
+        },
         license='BSD-3-Clause',
 
         # find_packages, NOT a hand-written list.  The previous list named

@@ -3,6 +3,19 @@
 ## Quick version
 
 ```bash
+pip install astro-fitted
+```
+
+The distribution is called `astro-fitted` because plain `fitted` on PyPI belongs to
+an unrelated package. The import name is just `fitted`:
+
+```python
+import fitted
+```
+
+To work from a checkout instead — which you want if you plan to modify the code:
+
+```bash
 git clone https://github.com/fittingtransientswithdiscs/FitTeD.git
 cd FitTeD
 python3 -m pip install -e .
