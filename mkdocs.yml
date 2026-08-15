@@ -1,0 +1,143 @@
+# ---------------------------------------------------------------------------
+# If the GitHub owner or repo name is not what we assumed, these are the only
+# four lines to change (and the clone URL in docs/installation.md).
+# ---------------------------------------------------------------------------
+site_url: https://fittingtransientswithdiscs.github.io/FitTeD/
+repo_url: https://github.com/fittingtransientswithdiscs/FitTeD
+repo_name: fittingtransientswithdiscs/FitTeD
+edit_uri: edit/main/docs/
+
+site_name: FitTeD
+site_description: >-
+  Fitting transients with discs — light curve and spectral fitting with evolving
+  relativistic accretion discs
+site_author: Andrew Mummery
+
+# ---------------------------------------------------------------------------
+# use_directory_urls: false writes page.html instead of page/index.html.
+#
+# That is what makes the built site/ folder work when you just double-click
+# site/index.html -- with directory URLs, every relative link breaks under
+# file://, and you need a web server to preview anything.  GitHub Pages serves
+# .html paths fine, so there is no reason to turn this back on.
+# ---------------------------------------------------------------------------
+use_directory_urls: false
+
+# ---------------------------------------------------------------------------
+# docs/tutorials is a SYMLINK to ../tutorials, so the site renders the same
+# notebook files the repository ships -- no copies, and no way for the two to
+# drift apart.
+#
+# The consequence is that everything in tutorials/ is visible to the build,
+# including the drafts and any run artefacts. Without the exclusions below they
+# are published as live, search-indexed pages: not in the navigation, but
+# reachable by URL and listed in sitemap.xml.
+#
+# tools/check_site_excludes.py verifies this actually worked, because MkDocs
+# older than 1.6 ignores exclude_docs silently.
+# ---------------------------------------------------------------------------
+exclude_docs: |
+  # Unfinished notebooks live in tutorials/drafts/ and must never be published:
+  # they have never been executed and several contain claims we know to be wrong.
+  # See tutorials/drafts/README.md. One directory, one line.
+  tutorials/drafts/
+  # Artefacts the notebooks write when run. Tutorial 06's chain backend is ~15 MB;
+  # without this it is copied verbatim into the published site. Also gitignored.
+  tutorials/*.h5
+  tutorials/*.pickle
+  tutorials/.ipynb_checkpoints/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - navigation.indexes
+    - toc.follow
+    - content.code.copy
+    - content.action.edit
+    - search.highlight
+    - search.suggest
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+  # Needed for :material-...: icon shortcodes (e.g. on the landing-page
+  # buttons). Without it they render as literal text.
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+  - mkdocs-jupyter:
+      # ---------------------------------------------------------------------
+      # execute: false is the single most important line in this file.
+      #
+      # The notebooks are committed WITH their outputs, so the site build only
+      # has to render them.  It therefore needs no manyTDE, no numba, no
+      # gfortran and no MCMC time -- which removes the commonest way a docs
+      # build fails, and keeps the whole build to a few seconds in CI.
+      #
+      # The price is that the outputs are only as current as the last time the
+      # notebooks were run.  Re-execute them deliberately with
+      # tools/execute_tutorials.sh; do not let the docs build do it silently.
+      # ---------------------------------------------------------------------
+      execute: false
+      include_source: true
+      ignore_h1_titles: true
+      show_input: true
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Tutorials:
+      - Overview: tutorials/README.md
+      - 00 · Introduction and installation: tutorials/00_introduction_and_installation.ipynb
+      - 01 · Data loading basics: tutorials/01_data_loading_basics.ipynb
+      - 02 · Observer-frame data input: tutorials/02_observer_frame_data_input.ipynb
+      - 03 · Model setup and parameters: tutorials/03_model_setup_and_parameters.ipynb
+      - 04 · Basic fitting workflow: tutorials/04_basic_fitting_workflow.ipynb
+      - 05 · MCMC fitting with emcee: tutorials/05_mcmc_fitting_with_emcee.ipynb
+      - 06 · Complete workflow — AT2019dsg: tutorials/06_complete_workflow_at2019dsg.ipynb
+      - 07 · Model options reference: tutorials/07_model_options_reference.ipynb
+  - Citing FitTeD: citing.md

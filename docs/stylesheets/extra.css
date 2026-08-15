@@ -1,0 +1,53 @@
+/* ---------------------------------------------------------------------------
+   Fixes for how mkdocs-jupyter renders notebooks inside the Material theme.
+   Each rule here is a specific defect, noted so nobody has to guess later.
+   --------------------------------------------------------------------------- */
+
+/* 1. Long code lines were being CLIPPED rather than scrolled -- the tail of a
+      line just vanished off the right edge of the cell with no scrollbar and no
+      indication anything was missing. Notebook input cells come through as
+      .highlight-ipynb, which Material's own overflow rules do not cover. */
+.jupyter-wrapper .highlight-ipynb pre,
+.jupyter-wrapper .jp-Cell-inputWrapper pre,
+.jupyter-wrapper div.highlight pre {
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* 2. Keep a long stdout dump from pushing the next heading off the screen.
+      Tutorial 09 prints several measurement tables; they should scroll. */
+.jupyter-wrapper .jp-Cell-outputWrapper pre,
+.jupyter-wrapper .jp-OutputArea-child pre {
+  max-height: 32rem;
+  overflow: auto;
+}
+
+/* 3. Notebook figures are saved at a fixed pixel size. Let them shrink on
+      narrow screens instead of forcing the whole page to scroll sideways. */
+.jupyter-wrapper img,
+.jupyter-wrapper .jp-OutputArea-child img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 4. Give the notebook body the same measure as the prose pages, so the two do
+      not visibly disagree about how wide a line of text should be. */
+.jupyter-wrapper {
+  font-size: 0.78rem;
+}
+
+/* 5. The In [n]: / Out[n]: prompts are decoration on a docs site and eat
+      horizontal room on phones. Keep them on desktop, drop them below the
+      Material breakpoint where space is tight. */
+@media screen and (max-width: 44.9375em) {
+  .jupyter-wrapper .jp-InputPrompt,
+  .jupyter-wrapper .jp-OutputPrompt {
+    display: none;
+  }
+}
+
+/* 6. Landing-page feature grid: soften the cards to match Material's own
+      rounded surfaces. */
+.md-typeset .grid.cards > ul > li {
+  border-radius: 0.4rem;
+}

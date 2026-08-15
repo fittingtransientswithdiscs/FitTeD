@@ -1,0 +1,12 @@
+# Dependencies for building the documentation site ONLY.
+#
+# Deliberately does not include FitTeD or any of its scientific dependencies:
+# mkdocs.yml sets `execute: false`, so the build renders the committed notebook
+# outputs and never imports the package. Keeping this file minimal is what makes
+# the docs build fast and near-unbreakable.
+# mkdocs MUST be >= 1.6: earlier versions ignore `exclude_docs` in
+# mkdocs.yml without erroring, which republishes the unfinished
+# tutorials. tools/check_site_excludes.py catches it if this slips.
+mkdocs==1.6.1
+mkdocs-material==9.7.6
+mkdocs-jupyter==0.26.3

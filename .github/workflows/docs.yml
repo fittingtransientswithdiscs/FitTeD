@@ -1,0 +1,91 @@
+name: docs
+
+# Build the documentation site and publish it to GitHub Pages.
+#
+# The notebooks under docs/tutorials/ are committed WITH their outputs and
+# mkdocs.yml sets `execute: false`, so this job only renders them.  It therefore
+# needs neither manyTDE, nor numba, nor a Fortran compiler, and it does not run
+# any MCMC.  Do not add notebook execution here: a docs build that runs a chain
+# is a docs build that fails at 3am for reasons unrelated to the docs.
+#
+# To refresh the outputs, run tools/execute_tutorials.sh locally and commit the
+# result, deliberately.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      # docs/tutorials is a SYMLINK to ../tutorials, and git records the
+      # symlink, not the notebooks.  A change to a notebook therefore shows
+      # up under tutorials/, not docs/ -- without this line, editing a
+      # tutorial would never trigger a rebuild of the site that shows it.
+      - 'tutorials/**'
+      # check_notebook_outputs.py and check_site_excludes.py run in this job
+      - 'tools/**'
+      - 'mkdocs.yml'
+      - 'requirements-docs.txt'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two publishes race; the newer one wins.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install documentation dependencies
+        run: python -m pip install -r requirements-docs.txt
+
+      - name: Build
+        # --strict turns warnings into errors, so a broken internal link or a
+        # page missing from the nav fails the build instead of shipping quietly.
+        run: mkdocs build --strict
+
+      - name: Check the notebooks were committed with their outputs
+        # If a notebook lost its outputs, the published page renders as bare
+        # source with no figures. That looks like a content decision rather than
+        # an accident, so catch it here.
+        run: python tools/check_notebook_outputs.py
+
+      - name: Check nothing excluded leaked into the built site
+        # docs/tutorials is a symlink to ../tutorials, so the unfinished
+        # notebooks are visible to the build and kept out only by exclude_docs
+        # -- which MkDocs < 1.6 ignores silently. This checks the artefact
+        # rather than trusting the pin.
+        run: python tools/check_site_excludes.py
+
+      - name: Check the citation on the website matches cite_fitted.bib
+        # docs/citing.md claims cite_fitted.bib is authoritative; this is what
+        # makes that true.
+        run: python tools/check_citation_sync.py
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
